@@ -1,5 +1,9 @@
 -- A translation of the example embedded here
 -- https://github.com/cappelnord/EzSVG
+package.path = "../?.lua;"..package.path;
+
+-- Either do the next line
+require("svgcreate.svgelements")()
 
 --require("svgcreate.svgelements")()
 -- Assuming this will be read into a context where svgelements
@@ -102,4 +106,8 @@ It's so ez to draw some lines, it's so easy to draw some lines ...
     }
 })
 
-return doc
+local FileStream = require("svgcreate.filestream")
+local svgstream = require("svgcreate.svgstream")
+local ImageStream = svgstream(FileStream.open("ezsvg_features.svg"))
+
+doc:write(ImageStream)
