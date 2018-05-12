@@ -2,6 +2,9 @@ local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
 local maths = require("svgcreate.maths");
 local clamp = maths.clamp
+local min = math.min;
+local max = math.max;
+local floor = math.floor;
 
 -- The actual layout in memory is:
 -- Little Endian - BGRA
@@ -11,8 +14,43 @@ local clamp = maths.clamp
 local function RGBA(r, g, b, a)
 	a = a or 255;
 	local num = tonumber(bor(lshift(tonumber(a),24), lshift(tonumber(r),16), lshift(tonumber(g),8), tonumber(b)))
-
 	return num;
+end
+
+local function hsv(h, s, v)
+
+    h = h / 255
+    s = s / 255
+    v = v / 255
+
+    h = h - floor(h)
+
+    h = max(0, min(1, h))
+    s = max(0, min(1, s))
+    v = max(0, min(1, v))
+    
+    local hi = math.floor(h * 6.0)
+    local f = (h * 6.0) - hi
+    
+    local p = v * (1.0 - s)
+    local q = v * (1.0 - s * f)
+    local t = v * (1.0 - s * (1.0 - f))
+    
+    local rgb = {v, t, p}
+    
+    if hi == 1 then
+        rgb = {q, v, p}
+    elseif hi == 2 then
+        rgb = {p, v, t}
+    elseif hi == 3 then
+        rgb = {p, q, v}
+    elseif hi == 4 then
+        rgb = {t, p, v}
+    elseif hi == 5 then
+        rgb = {v, p, q}
+    end
+    
+    return RGBA(rgb[1] * 255, rgb[2] * 255, rgb[3] * 255)
 end
 
 local function colorComponents(c)
@@ -68,7 +106,8 @@ local exports = {
 	colorComponents = colorComponents;
 	lerpRGBA = lerpRGBA;
 	RGBA = RGBA;
-
+	hsv = hsv;
+	
 	white = RGBA(255, 255, 255);
 	black = RGBA(0,0,0);
 	blue = RGBA(0,0,255);
