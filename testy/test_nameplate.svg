@@ -1,0 +1,10 @@
+<svg xmlns:xlink = 'http://www.w3.org/1999/xlink' version = '1.1' xmlns = 'http://www.w3.org/2000/svg' width = '178mm' height = '64mm' viewBox = '0 0 178 64'>
+<rect x = '0' height = '64' y = '0' stroke = 'black' fill = 'none' width = '178' />
+<image x = '20' id = 'faceimage' y = '0' width = '25.4' height = '63.5' xlink:href = 'images/charicature_small_bw.jpg' />
+<text x = '50' font-family = 'Arial Rounded MT Bold' font-size = '14' y = '60' stroke = 'black' fill = '#CCCCCC' stroke-width = '0.1'>
+OCTO Ambassador</text>
+<text x = '89' y = '14' stroke-width = '0.1' text_anchor = 'middle' font-size = '12' stroke = 'black' fill = '#CCCCCC' font-family = 'Arial Rounded MT Bold'>
+4158</text>
+<circle fill = 'none' r = '2' cy = '40' stroke = 'black' cx = '16' stroke-width = '0.1' />
+<circle fill = 'none' r = '2' cy = '40' stroke = 'black' cx = '162' stroke-width = '0.1' />
+</svg>

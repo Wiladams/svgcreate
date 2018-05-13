@@ -81,6 +81,7 @@ for i=0,9 do
         group:append(t1)
     end
     
+    -- Final rendering of text as solid white
     t1:attr("stroke", "#FFFFFF");
     t1:attr("fill", "#AAFF00");
     group:append(t1)
