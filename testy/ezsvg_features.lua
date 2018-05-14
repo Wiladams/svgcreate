@@ -85,9 +85,9 @@ doc:append (
 doc:append(use {
     ['xlink:href'] = "#TextPath",
     stroke = "blue",
-    ['stroke-width'] = 2,
+    stroke_width = 2,
     fill = "url(#PathGradient)",
-    ['fill-opacity'] = "0.8"
+    fill_opacity = "0.8"
 })
 
 -- add text to doc, add a path and style it

@@ -24,13 +24,14 @@ local doc = svg {
     },
 
     image {
-        --stroke = "red",
         id = "faceimage",
         x = "20",
-        y = "0",
-        width = "25.4",
-        height = "63.5",
-        --viewBox = "0 0 96 240",
+        y = "4",
+        width = "25.93",    -- 196 pixel wide (51.85mm)
+        height = "38.63",   -- 292 pixels high (77.25mm)
+
+        viewBox = "0 0 48 96",
+        
         --["xlink:href"] = "images/charicature_small.jpg",
         --["xlink:href"] = "images/charicature_small_slate.jpg",
         ["xlink:href"] = "images/charicature_small_bw.jpg",
@@ -39,14 +40,14 @@ local doc = svg {
 
     -- Title
     text {
-        x = 50,
+        x = 89,
         y = 60,
         fill = "#CCCCCC",
         stroke = "black",
         stroke_width = 0.1,
         font_family = "Arial Rounded MT Bold",
         font_size = "14",
-        --transform = rotation,
+        style = "text-anchor: middle",
 
         -- The actual text
         "OCTO Ambassador"
@@ -61,7 +62,8 @@ local doc = svg {
         stroke_width = 0.1,
         font_family = "Arial Rounded MT Bold",
         font_size = "12",
-        text_anchor = "middle",
+        style = "text-anchor: middle",
+
         -- The actual text
         "4158"
     };
