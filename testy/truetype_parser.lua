@@ -167,152 +167,198 @@ assert(STBTT_MAX_OVERSAMPLE <= 255,  "STBTT_MAX_OVERSAMPLE cannot be > 255")
 // stbtt__buf helpers to parse data from file
 //
 --]]
---[[
-local function stbtt_uint8 stbtt__buf_get8(stbtt__buf *b)
+-- get 8 bits, and advance the cursor
+local function stbtt__buf_get8(b)
 
    if (b.cursor >= b.size) then
       return 0;
    end
-   return b.data[b.cursor++];
+   --b.data[b.cursor++];
+   local r = b.data[b.cursor];
+   b.cursor = b.cursor + 1;
+   return r
 end
 
-local function stbtt_uint8 stbtt__buf_peek8(stbtt__buf *b)
-{
-   if (b.cursor >= b.size)
-      return 0;
-   return b.data[b.cursor];
-}
+-- get 8 bits, and don't advance the cursor
+local function stbtt__buf_peek8(b)
+    if (b.cursor >= b.size) then
+        return 0;
+    end
 
-local function stbtt__buf_seek(stbtt__buf *b, int o)
-{
-   STBTT_assert(!(o > b.size || o < 0));
-   b.cursor = (o > b.size || o < 0) ? b.size : o;
-}
+    return b.data[b.cursor];
+end
 
-local function stbtt__buf_skip(stbtt__buf *b, int o)
-{
-   stbtt__buf_seek(b, b.cursor + o);
-}
+-- move to a particular position, in bytes
+local function stbtt__buf_seek(b, o)
+   STBTT_assert(not (o > b.size or o < 0));
+   --b.cursor = (o > b.size or o < 0) ? b.size : o;
+    if (o > b.size or o < 0) then 
+        b.cursor = b.size
+    else
+        b.cursor = o;
+    end
 
-local function stbtt_uint32 stbtt__buf_get(stbtt__buf *b, int n)
-{
-   stbtt_uint32 v = 0;
-   int i;
-   STBTT_assert(n >= 1 && n <= 4);
-   for (i = 0; i < n; i++)
-      v = (v << 8) | stbtt__buf_get8(b);
-   return v;
-}
+    return true;
+end
 
-local function stbtt__buf stbtt__new_buf(const void *p, size_t size)
-{
-   stbtt__buf r;
+local function stbtt__buf_skip(b, o)
+    return stbtt__buf_seek(b, b.cursor + o);
+end
+
+local function stbtt__buf_get(b, n)
+    STBTT_assert(n >= 1 and n <= 4);
+    local v = 0;
+    local i = 0;
+    while  (i < n) do
+        v = bor(lshift(v, 8), stbtt__buf_get8(b));
+        i = i + 1;
+    end
+
+    return v;
+end
+
+local function stbtt__new_buf(p, size)
+
+   local r = ffi.new(ffi.typeof('stbtt__buf'));
    STBTT_assert(size < 0x40000000);
-   r.data = (stbtt_uint8*) p;
-   r.size = (int) size;
+   r.data = p;
+   r.size = size;
    r.cursor = 0;
+
    return r;
-}
+end
 
-#define stbtt__buf_get16(b)  stbtt__buf_get((b), 2)
-#define stbtt__buf_get32(b)  stbtt__buf_get((b), 4)
 
-local function stbtt__buf stbtt__buf_range(const stbtt__buf *b, int o, int s)
-{
-   stbtt__buf r = stbtt__new_buf(NULL, 0);
-   if (o < 0 || s < 0 || o > b.size || s > b.size - o) return r;
-   r.data = b.data + o;
-   r.size = s;
-   return r;
-}
+local function stbtt__buf_get16(b)  
+    return stbtt__buf_get(b, 2)
+end
 
-local function stbtt__buf stbtt__cff_get_index(stbtt__buf *b)
-{
-   int count, start, offsize;
-   start = b.cursor;
-   count = stbtt__buf_get16(b);
-   if (count) {
-      offsize = stbtt__buf_get8(b);
-      STBTT_assert(offsize >= 1 && offsize <= 4);
-      stbtt__buf_skip(b, offsize * count);
-      stbtt__buf_skip(b, stbtt__buf_get(b, offsize) - 1);
-   }
-   return stbtt__buf_range(b, start, b.cursor - start);
-}
+local function stbtt__buf_get32(b)  
+    return stbtt__buf_get(b, 4)
+end
 
-local function stbtt_uint32 stbtt__cff_int(stbtt__buf *b)
-{
-   int b0 = stbtt__buf_get8(b);
-   if (b0 >= 32 && b0 <= 246)       return b0 - 139;
-   else if (b0 >= 247 && b0 <= 250) return (b0 - 247)*256 + stbtt__buf_get8(b) + 108;
-   else if (b0 >= 251 && b0 <= 254) return -(b0 - 251)*256 - stbtt__buf_get8(b) - 108;
-   else if (b0 == 28)               return stbtt__buf_get16(b);
-   else if (b0 == 29)               return stbtt__buf_get32(b);
-   STBTT_assert(0);
-   return 0;
-}
 
-local function stbtt__cff_skip_operand(stbtt__buf *b) 
-{
-   int v, b0 = stbtt__buf_peek8(b);
+local function stbtt__buf_range(b, o, s)
+
+    local r = stbtt__new_buf(nil, 0);
+    if ((o < 0) or (s < 0) or (o > b.size) or (s > (b.size - o))) then 
+        return r;
+    end
+
+
+    r.data = b.data + o;
+    r.size = s;
+    
+    return r;
+end
+
+
+local function stbtt__cff_get_index(b)
+
+    local start = b.cursor;
+    local count = stbtt__buf_get16(b);
+    if (count > 0) then
+        local offsize = stbtt__buf_get8(b);
+        STBTT_assert((offsize >= 1) and (offsize <= 4));
+        stbtt__buf_skip(b, offsize * count);
+        stbtt__buf_skip(b, stbtt__buf_get(b, offsize) - 1);
+    end
+   
+    return stbtt__buf_range(b, start, b.cursor - start);
+end
+
+
+local function stbtt__cff_int(b)
+
+    local b0 = stbtt__buf_get8(b);
+    if (b0 >= 32 and b0 <= 246) then       
+        return b0 - 139;
+    elseif (b0 >= 247 and b0 <= 250) then 
+        return (b0 - 247)*256 + stbtt__buf_get8(b) + 108;
+    elseif (b0 >= 251 and b0 <= 254) then
+        return -(b0 - 251)*256 - stbtt__buf_get8(b) - 108;
+    elseif (b0 == 28) then
+        return stbtt__buf_get16(b);
+    elseif (b0 == 29) then
+        return stbtt__buf_get32(b);
+    end
+
+    STBTT_assert(false);
+
+    return 0;
+end
+
+local function stbtt__cff_skip_operand(b) 
+
+   local b0 = stbtt__buf_peek8(b);
    STBTT_assert(b0 >= 28);
-   if (b0 == 30) {
+   local v = 0;
+   if (b0 == 30) then
       stbtt__buf_skip(b, 1);
-      while (b.cursor < b.size) {
+      while (b.cursor < b.size) do
          v = stbtt__buf_get8(b);
-         if ((v & 0xF) == 0xF || (v >> 4) == 0xF)
+         if ((bor(v, 0xF) == 0xF) or (rshift(v, 4) == 0xF)) then
             break;
-      }
-   } else {
+         end
+        end
+   else 
       stbtt__cff_int(b);
-   }
-}
+   end
+end
 
-local function stbtt__buf stbtt__dict_get(stbtt__buf *b, int key)
-{
-   stbtt__buf_seek(b, 0);
-   while (b.cursor < b.size) {
-      int start = b.cursor, end, op;
-      while (stbtt__buf_peek8(b) >= 28)
+local function stbtt__dict_get(b, key)
+
+    stbtt__buf_seek(b, 0);
+    while (b.cursor < b.size) do
+        local start = b.cursor; 
+        local ending=0; 
+        local op=0;
+        while (stbtt__buf_peek8(b) >= 28) do
          stbtt__cff_skip_operand(b);
-      end = b.cursor;
-      op = stbtt__buf_get8(b);
-      if (op == 12)  op = stbtt__buf_get8(b) | 0x100;
-      if (op == key) return stbtt__buf_range(b, start, end-start);
-   }
-   return stbtt__buf_range(b, 0, 0);
-}
+        end
+        ending = b.cursor;
+        op = stbtt__buf_get8(b);
+        if (op == 12)  then 
+            op = bor(stbtt__buf_get8(b), 0x100); 
+        end
+        
+        if (op == key) then
+            return stbtt__buf_range(b, start, ending-start);
+        end
+    end
+    
+    return stbtt__buf_range(b, 0, 0);
+end
 
-local function stbtt__dict_get_ints(stbtt__buf *b, int key, int outcount, stbtt_uint32 *out)
-{
-   int i;
-   stbtt__buf operands = stbtt__dict_get(b, key);
-   for (i = 0; i < outcount && operands.cursor < operands.size; i++)
-      out[i] = stbtt__cff_int(&operands);
-}
+local function stbtt__dict_get_ints(b, key, outcount, out)
 
-local function int stbtt__cff_index_count(stbtt__buf *b)
-{
+    local operands = stbtt__dict_get(b, key);
+    local  i=0;
+    while (i < outcount and operands.cursor < operands.size) do
+        out[i] = stbtt__cff_int(operands);
+        i = i + 1;
+    end
+end
+
+local function stbtt__cff_index_count(b)
    stbtt__buf_seek(b, 0);
    return stbtt__buf_get16(b);
-}
+end
 
-local function stbtt__buf stbtt__cff_index_get(stbtt__buf b, int i)
-{
-   int count, offsize, start, end;
-   stbtt__buf_seek(&b, 0);
-   count = stbtt__buf_get16(&b);
-   offsize = stbtt__buf_get8(&b);
-   STBTT_assert(i >= 0 && i < count);
-   STBTT_assert(offsize >= 1 && offsize <= 4);
-   stbtt__buf_skip(&b, i*offsize);
-   start = stbtt__buf_get(&b, offsize);
-   end = stbtt__buf_get(&b, offsize);
-   return stbtt__buf_range(&b, 2+(count+1)*offsize+start, end - start);
-}
---]]
+local function stbtt__cff_index_get(b, i)
+   stbtt__buf_seek(b, 0);
+   local count = stbtt__buf_get16(b);
+   local offsize = stbtt__buf_get8(b);
+   STBTT_assert((i >= 0) and (i < count));
+   STBTT_assert(offsize >= 1 and offsize <= 4);
+   stbtt__buf_skip(b, i*offsize);
+   local start = stbtt__buf_get(b, offsize);
+   local ending = stbtt__buf_get(b, offsize);
+   return stbtt__buf_range(b, 2+(count+1)*offsize+start, ending - start);
+end
 
---[=[
+
+--[[
 //////////////////////////////////////////////////////////////////////////
 //
 // accessors to parse data from file
@@ -329,21 +375,29 @@ local function stbtt_uint16 ttUSHORT(stbtt_uint8 *p) { return p[0]*256 + p[1]; }
 local function stbtt_int16 ttSHORT(stbtt_uint8 *p)   { return p[0]*256 + p[1]; }
 local function stbtt_uint32 ttULONG(stbtt_uint8 *p)  { return (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3]; }
 local function stbtt_int32 ttLONG(stbtt_uint8 *p)    { return (p[0]<<24) + (p[1]<<16) + (p[2]<<8) + p[3]; }
+--]]
 
-#define stbtt_tag4(p,c0,c1,c2,c3) ((p)[0] == (c0) && (p)[1] == (c1) && (p)[2] == (c2) && (p)[3] == (c3))
-#define stbtt_tag(p,str)           stbtt_tag4(p,str[0],str[1],str[2],str[3])
+local function stbtt_tag4(p,c0,c1,c2,c3) 
+    return (p[0] == c0 and p[1] == c1 and p[2] == c2 and p[3] == c3)
+end
 
-local function int stbtt__isfont(stbtt_uint8 *font)
-{
-   // check the version number
-   if (stbtt_tag4(font, '1',0,0,0))  return 1; // TrueType 1
-   if (stbtt_tag(font, "typ1"))   return 1; // TrueType with type 1 font -- we don't support this!
-   if (stbtt_tag(font, "OTTO"))   return 1; // OpenType with CFF
-   if (stbtt_tag4(font, 0,1,0,0)) return 1; // OpenType 1.0
-   if (stbtt_tag(font, "true"))   return 1; // Apple specification for TrueType fonts
-   return 0;
-}
+local function stbtt_tag(p,str)           
+    return stbtt_tag4(p,str[0],str[1],str[2],str[3])
+end
 
+local function stbtt__isfont(font)
+
+   -- check the version number
+   if (stbtt_tag4(font, '1',0,0,0))  then return 1; end -- TrueType 1
+   if (stbtt_tag(font, "typ1"))   then return true; end -- TrueType with type 1 font -- we don't support this!
+   if (stbtt_tag(font, "OTTO"))   then return true; end -- OpenType with CFF
+   if (stbtt_tag4(font, 0,1,0,0)) then return true; end -- OpenType 1.0
+   if (stbtt_tag(font, "true"))   then return true; end -- Apple specification for TrueType fonts
+   
+   return false;
+end
+
+--[=[
 // @OPTIMIZE: binary search
 local function stbtt_uint32 stbtt__find_table(stbtt_uint8 *data, stbtt_uint32 fontstart, const char *tag)
 {
@@ -1671,36 +1725,36 @@ float stbtt_ScaleForPixelHeight(const stbtt_fontinfo *info, float height)
    int fheight = ttSHORT(info.data + info.hhea + 4) - ttSHORT(info.data + info.hhea + 6);
    return (float) height / fheight;
 }
-
-float stbtt_ScaleForMappingEmToPixels(const stbtt_fontinfo *info, float pixels)
-{
-   int unitsPerEm = ttUSHORT(info.data + info.head + 18);
-   return pixels / unitsPerEm;
-}
-
-void stbtt_FreeShape(const stbtt_fontinfo *info, stbtt_vertex *v)
-{
-   STBTT_free(v, info.userdata);
-}
-
-
-int stbtt_GetFontOffsetForIndex(const unsigned char *data, int index)
-{
-   return stbtt_GetFontOffsetForIndex_internal((unsigned char *) data, index);   
-}
-
-int stbtt_GetNumberOfFonts(const unsigned char *data)
-{
-   return stbtt_GetNumberOfFonts_internal((unsigned char *) data);
-}
-
-int stbtt_InitFont(stbtt_fontinfo *info, const unsigned char *data, int offset)
-{
-   return stbtt_InitFont_internal(info, (unsigned char *) data, offset);
-}
-
-
 --]=]
+
+local function stbtt_ScaleForMappingEmToPixels(info, pixels)
+
+   local unitsPerEm = ttUSHORT(info.data + info.head + 18);
+   return pixels / unitsPerEm;
+end
+
+local function stbtt_FreeShape(info, v)
+   STBTT_free(v, info.userdata);
+end
+
+
+local function stbtt_GetFontOffsetForIndex(data, index)
+
+   return stbtt_GetFontOffsetForIndex_internal(data, index);   
+end
+
+local function stbtt_GetNumberOfFonts(data)
+
+   return stbtt_GetNumberOfFonts_internal(data);
+end
+
+local function stbtt_InitFont(info, data, offset)
+
+   return stbtt_InitFont_internal(info, data, offset);
+end
+
+
+
 
 --[[
 local exports = {
