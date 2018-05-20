@@ -138,7 +138,7 @@ function mmap:__new(filename, newsize)
 	local m = ffi.new(self, #filename+1)
 	
     -- Open file
-    print("Open File")
+    --print("Open File")
     m.filehandle = ffi.C.CreateFileA(filename, 
     --bit.bor(GENERIC_READ, GENERIC_WRITE), 
             bit.bor(GENERIC_READ), 
@@ -148,18 +148,18 @@ function mmap:__new(filename, newsize)
         bit.bor(FILE_ATTRIBUTE_ARCHIVE, FILE_FLAG_RANDOM_ACCESS), 
         nil)
     
-    print("    File Handle: ", m.filehandle)
+    --print("    File Handle: ", m.filehandle)
     
     if m.filehandle == INVALID_HANDLE_VALUE then
 		error("Could not create/open file for mmap: "..tostring(ffi.C.GetLastError()))
 	end
 	
     -- Set file size if new
-    print("GET File Size")
+    --print("GET File Size")
     local exists = true;
     if exists then
 		local fsize = ffi.C.GetFileSize(m.filehandle, nil)
-        print("    Size: ", fsize)
+        --print("    Size: ", fsize)
 		if fsize == 0 then
 			-- Windows will error if mapping a 0-length file, fake a new one
 			exists = false
@@ -174,14 +174,14 @@ function mmap:__new(filename, newsize)
 	
 	-- Open mapping
     m.maphandle = ffi.C.CreateFileMappingA(m.filehandle, nil, PAGE_READONLY, 0, m.size, nil)
-    print("CREATE File Mapping: ", m.maphandle)
+    --print("CREATE File Mapping: ", m.maphandle)
 	if m.maphandle == nil then
 		error("Could not create file map: "..tostring(ffi.C.GetLastError()))
 	end
 	
 	-- Open view
 	m.map = ffi.C.MapViewOfFile(m.maphandle, FILE_MAP_READ, 0, 0, 0)
-	print("MAP VIEW: ", m.map)
+	--print("MAP VIEW: ", m.map)
 	if m.map == nil then
 		error("Could not map: "..tostring(ffi.C.GetLastError()))
 	end

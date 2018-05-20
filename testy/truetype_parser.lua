@@ -2,7 +2,9 @@
 // stb_truetype.h - v1.19 - public domain
 // authored from 2009-2016 by Sean Barrett / RAD Game Tools
 //
-// Origin: https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h
+Origin: 
+    https://github.com/nothings/stb
+    https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h
 
 The original source does everything from parsing truetype fonts to rendering
 them into bitmaps.  In this application, we're only interested in the 
@@ -42,6 +44,59 @@ ffi.cdef[[
    typedef int32_t    stbtt_int32;
 ]]
 
+--[[
+    For finding the right font
+]]
+ffi.cdef[[
+    enum { // platformID
+   STBTT_PLATFORM_ID_UNICODE   =0,
+   STBTT_PLATFORM_ID_MAC       =1,
+   STBTT_PLATFORM_ID_ISO       =2,
+   STBTT_PLATFORM_ID_MICROSOFT =3
+};
+
+enum { // encodingID for STBTT_PLATFORM_ID_UNICODE
+   STBTT_UNICODE_EID_UNICODE_1_0    =0,
+   STBTT_UNICODE_EID_UNICODE_1_1    =1,
+   STBTT_UNICODE_EID_ISO_10646      =2,
+   STBTT_UNICODE_EID_UNICODE_2_0_BMP=3,
+   STBTT_UNICODE_EID_UNICODE_2_0_FULL=4
+};
+
+enum { // encodingID for STBTT_PLATFORM_ID_MICROSOFT
+   STBTT_MS_EID_SYMBOL        =0,
+   STBTT_MS_EID_UNICODE_BMP   =1,
+   STBTT_MS_EID_SHIFTJIS      =2,
+   STBTT_MS_EID_UNICODE_FULL  =10
+};
+
+enum { // encodingID for STBTT_PLATFORM_ID_MAC; same as Script Manager codes
+   STBTT_MAC_EID_ROMAN        =0,   STBTT_MAC_EID_ARABIC       =4,
+   STBTT_MAC_EID_JAPANESE     =1,   STBTT_MAC_EID_HEBREW       =5,
+   STBTT_MAC_EID_CHINESE_TRAD =2,   STBTT_MAC_EID_GREEK        =6,
+   STBTT_MAC_EID_KOREAN       =3,   STBTT_MAC_EID_RUSSIAN      =7
+};
+
+enum { // languageID for STBTT_PLATFORM_ID_MICROSOFT; same as LCID...
+       // problematic because there are e.g. 16 english LCIDs and 16 arabic LCIDs
+   STBTT_MS_LANG_ENGLISH     =0x0409,   STBTT_MS_LANG_ITALIAN     =0x0410,
+   STBTT_MS_LANG_CHINESE     =0x0804,   STBTT_MS_LANG_JAPANESE    =0x0411,
+   STBTT_MS_LANG_DUTCH       =0x0413,   STBTT_MS_LANG_KOREAN      =0x0412,
+   STBTT_MS_LANG_FRENCH      =0x040c,   STBTT_MS_LANG_RUSSIAN     =0x0419,
+   STBTT_MS_LANG_GERMAN      =0x0407,   STBTT_MS_LANG_SPANISH     =0x0409,
+   STBTT_MS_LANG_HEBREW      =0x040d,   STBTT_MS_LANG_SWEDISH     =0x041D
+};
+
+enum { // languageID for STBTT_PLATFORM_ID_MAC
+   STBTT_MAC_LANG_ENGLISH      =0 ,   STBTT_MAC_LANG_JAPANESE     =11,
+   STBTT_MAC_LANG_ARABIC       =12,   STBTT_MAC_LANG_KOREAN       =23,
+   STBTT_MAC_LANG_DUTCH        =4 ,   STBTT_MAC_LANG_RUSSIAN      =32,
+   STBTT_MAC_LANG_FRENCH       =1 ,   STBTT_MAC_LANG_SPANISH      =6 ,
+   STBTT_MAC_LANG_GERMAN       =2 ,   STBTT_MAC_LANG_SWEDISH      =5 ,
+   STBTT_MAC_LANG_HEBREW       =10,   STBTT_MAC_LANG_CHINESE_SIMPLIFIED =33,
+   STBTT_MAC_LANG_ITALIAN      =3 ,   STBTT_MAC_LANG_CHINESE_TRAD =19
+};
+]]
 --   typedef char stbtt__check_size32[sizeof(stbtt_int32)==4 ? 1 : -1];
 --   typedef char stbtt__check_size16[sizeof(stbtt_int16)==2 ? 1 : -1];
 
@@ -107,6 +162,7 @@ typedef struct
 //
 --]]
 
+--[=[
 ffi.cdef[[
 // The following structure is defined publically so you can declare one on
 // the stack or as a global or etc, but you should treat it as opaque.
@@ -130,20 +186,19 @@ struct stbtt_fontinfo
    stbtt__buf fdselect;               // map from glyph to fontdict
 };
 ]]
+--]=]
+
+
 
 -- convenience
-local stbtt_fontinfo = ffi.typeof('struct stbtt_fontinfo');
+--local stbtt_fontinfo = ffi.typeof('struct stbtt_fontinfo');
 
+-- commands for path drawing
+local STBTT_vmove=1;
+local STBTT_vline = 2;
+local STBTT_vcurve = 3;
+local STBTT_vcubic = 4;
 
-
-ffi.cdef[[
-   enum {
-      STBTT_vmove=1,
-      STBTT_vline,
-      STBTT_vcurve,
-      STBTT_vcubic
-   };
-]]
 
 
 ffi.cdef[[
@@ -374,10 +429,10 @@ end
 #define ttFixed(p)    ttLONG(p)
 --]]
 -- BUGBUG - need to mind the signed versions
-local function ttUSHORT(p) return lshift(p[0],8) + p[1]; end
-local function ttSHORT(p)  return lshift(p[0],8) + p[1]; end
-local function ttULONG(p)  return lshift(p[0],24) + lshift(p[1],16) + lshift(p[2],8) + p[3]; end
-local function ttLONG(p)   return lshift(p[0],24) + lshift(p[1],16) + lshift(p[2],8) + p[3]; end
+local function ttUSHORT(p) return ffi.cast('uint16_t',lshift(p[0],8) + p[1]); end
+local function ttSHORT(p)  return ffi.cast('int16_t', lshift(p[0],8) + p[1]); end
+local function ttULONG(p)  return ffi.cast('uint32_t', lshift(p[0],24) + lshift(p[1],16) + lshift(p[2],8) + p[3]); end
+local function ttLONG(p)   return ffi.cast('int32_t',lshift(p[0],24) + lshift(p[1],16) + lshift(p[2],8) + p[3]); end
 
 
 local function stbtt_tag4(p,c0,c1,c2,c3) 
@@ -401,15 +456,18 @@ end
 
 
 -- @OPTIMIZE: binary search
+-- WAA - should load all tables at once
+-- into a table directory of the fontinfo
 local function stbtt__find_table(data, fontstart, tag)
+    local tagptr = ffi.cast('uint8_t *', tag)
 
     local num_tables = ttUSHORT(data+fontstart+4);
     local tabledir = fontstart + 12;
     local i = 0;
     while (i < num_tables) do
         local loc = tabledir + 16*i;
-        if (stbtt_tag(data+loc+0, tag)) then
-            return ttULONG(data+loc+8);
+        if (stbtt_tag(data+loc+0, tagptr)) then
+            return tonumber(ttULONG(data+loc+8));
         end
         i = i + 1;
     end
@@ -419,7 +477,6 @@ end
 
 
 local function stbtt_GetFontOffsetForIndex_internal(font_collection, index)
-
     -- if it's just a font, there's only one valid index
     if (stbtt__isfont(font_collection)) then
         if index == 0 then return 0 end
@@ -440,7 +497,6 @@ local function stbtt_GetFontOffsetForIndex_internal(font_collection, index)
     
     return -1;
 end
-
 
 local function stbtt_GetNumberOfFonts_internal(font_collection)
 
@@ -481,14 +537,14 @@ end
 local function stbtt_InitFont_internal(info, data, fontstart)
 
    local cmap, t;
-   local i,numTables;
+   local numTables;
 
    info.data = data;
    info.fontstart = fontstart;
    info.cff = stbtt__new_buf(nil, 0);
    cmap = stbtt__find_table(data, fontstart, "cmap");       -- required
 
---[=[
+
    info.loca = stbtt__find_table(data, fontstart, "loca"); -- required
    info.head = stbtt__find_table(data, fontstart, "head"); -- required
    info.glyf = stbtt__find_table(data, fontstart, "glyf"); -- required
@@ -497,43 +553,56 @@ local function stbtt_InitFont_internal(info, data, fontstart)
    info.kern = stbtt__find_table(data, fontstart, "kern"); -- not required
    info.gpos = stbtt__find_table(data, fontstart, "GPOS"); -- not required
 
-   if (!cmap || !info.head || !info.hhea || !info.hmtx)
-      return 0;
-   if (info.glyf) {
-      // required for truetype
-      if (!info.loca) return 0;
-   } else {
-      // initialization for CFF / Type2 fonts (OTF)
-      stbtt__buf b, topdict, topdictidx;
-      stbtt_uint32 cstype = 2, charstrings = 0, fdarrayoff = 0, fdselectoff = 0;
-      stbtt_uint32 cff;
+
+    if ((cmap==0) or (info.head==0) or (info.hhea==0) or (info.hmtx==0)) then
+      return false;
+    end
+
+    if (info.glyf ~= 0) then
+      -- required for truetype
+      if (info.loca==0) then 
+        return false;
+      end
+    else
+print("Initialization for CFF")
+      -- initialization for CFF / Type2 fonts (OTF)
+      local b = ffi.new('stbtt__buf');
+      local topdict = ffi.new('stbtt__buf');
+      local topdictidx = ffi.new('stbtt__buf');
+      local cstype = 2;
+      local charstrings = 0;
+      local fdarrayoff = 0; 
+      local fdselectoff = 0;
+      local cff=0;
 
       cff = stbtt__find_table(data, fontstart, "CFF ");
-      if (!cff) return 0;
+      if (cff == 0) then 
+        return false;
+      end
 
-      info.fontdicts = stbtt__new_buf(NULL, 0);
-      info.fdselect = stbtt__new_buf(NULL, 0);
-
-      // @TODO this should use size from table (not 512MB)
+      info.fontdicts = stbtt__new_buf(nil, 0);
+      info.fdselect = stbtt__new_buf(nil, 0);
+  
+      -- @TODO this should use size from table (not 512MB)
       info.cff = stbtt__new_buf(data+cff, 512*1024*1024);
       b = info.cff;
 
-      // read the header
-      stbtt__buf_skip(&b, 2);
-      stbtt__buf_seek(&b, stbtt__buf_get8(&b)); // hdrsize
+      -- read the header
+      stbtt__buf_skip(b, 2);
+      stbtt__buf_seek(b, stbtt__buf_get8(b)); -- hdrsize
 
-      // @TODO the name INDEX could list multiple fonts,
-      // but we just use the first one.
-      stbtt__cff_get_index(&b);  // name INDEX
-      topdictidx = stbtt__cff_get_index(&b);
+      -- @TODO the name INDEX could list multiple fonts,
+      -- but we just use the first one.
+      stbtt__cff_get_index(b);  -- name INDEX
+      topdictidx = stbtt__cff_get_index(b);
       topdict = stbtt__cff_index_get(topdictidx, 0);
-      stbtt__cff_get_index(&b);  // string INDEX
-      info.gsubrs = stbtt__cff_get_index(&b);
-
-      stbtt__dict_get_ints(&topdict, 17, 1, &charstrings);
-      stbtt__dict_get_ints(&topdict, 0x100 | 6, 1, &cstype);
-      stbtt__dict_get_ints(&topdict, 0x100 | 36, 1, &fdarrayoff);
-      stbtt__dict_get_ints(&topdict, 0x100 | 37, 1, &fdselectoff);
+      stbtt__cff_get_index(b);  -- string INDEX
+      info.gsubrs = stbtt__cff_get_index(b);
+  --[[
+      stbtt__dict_get_ints(topdict, 17, 1, &charstrings);
+      stbtt__dict_get_ints(topdict, 0x100 | 6, 1, &cstype);
+      stbtt__dict_get_ints(topdict, 0x100 | 36, 1, &fdarrayoff);
+      stbtt__dict_get_ints(topdict, 0x100 | 37, 1, &fdselectoff);
       info.subrs = stbtt__get_subrs(b, topdict);
 
       // we only support Type 2 charstrings
@@ -543,51 +612,58 @@ local function stbtt_InitFont_internal(info, data, fontstart)
       if (fdarrayoff) {
          // looks like a CID font
          if (!fdselectoff) return 0;
-         stbtt__buf_seek(&b, fdarrayoff);
-         info.fontdicts = stbtt__cff_get_index(&b);
-         info.fdselect = stbtt__buf_range(&b, fdselectoff, b.size-fdselectoff);
+         stbtt__buf_seek(b, fdarrayoff);
+         info.fontdicts = stbtt__cff_get_index(b);
+         info.fdselect = stbtt__buf_range(b, fdselectoff, b.size-fdselectoff);
       }
+--]]
+      stbtt__buf_seek(b, charstrings);
+      info.charstrings = stbtt__cff_get_index(b);
 
-      stbtt__buf_seek(&b, charstrings);
-      info.charstrings = stbtt__cff_get_index(&b);
-   }
+    end
 
    t = stbtt__find_table(data, fontstart, "maxp");
-   if (t)
+   if (t ~= 0) then
       info.numGlyphs = ttUSHORT(data+t+4);
    else
       info.numGlyphs = 0xffff;
+   end
 
-   // find a cmap encoding table we understand *now* to avoid searching
-   // later. (todo: could make this installable)
-   // the same regardless of glyph.
-   numTables = ttUSHORT(data + cmap + 2);
-   info.index_map = 0;
-   for (i=0; i < numTables; ++i) {
-      stbtt_uint32 encoding_record = cmap + 4 + 8 * i;
-      // find an encoding we understand:
-      switch(ttUSHORT(data+encoding_record)) {
-         case STBTT_PLATFORM_ID_MICROSOFT:
-            switch (ttUSHORT(data+encoding_record+2)) {
-               case STBTT_MS_EID_UNICODE_BMP:
-               case STBTT_MS_EID_UNICODE_FULL:
-                  // MS/Unicode
-                  info.index_map = cmap + ttULONG(data+encoding_record+4);
-                  break;
-            }
-            break;
-        case STBTT_PLATFORM_ID_UNICODE:
-            // Mac/iOS has these
-            // all the encodingIDs are unicode, so we don't bother to check it
-            info.index_map = cmap + ttULONG(data+encoding_record+4);
-            break;
-      }
-   }
-   if (info.index_map == 0)
-      return 0;
+    -- find a cmap encoding table we understand *now* to avoid searching
+    -- later. (todo: could make this installable)
+    -- the same regardless of glyph.
+    numTables = ttUSHORT(data + cmap + 2);
+--print("NumTables: ", numTables)
+    info.index_map = 0;
+    local i = 0;
+    while (i < numTables) do
+        local encoding_record = cmap + 4 + 8 * i;
+        -- find an encoding we understand:
+        local enc = ttUSHORT(data+encoding_record);
+--print("enc: ", enc)
+        if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
+            local msfteid = ttUSHORT(data+encoding_record+2)
+            if msfteid == ffi.C.STBTT_MS_EID_UNICODE_BMP or
+                msfteid == ffi.C.STBTT_MS_EID_UNICODE_FULL then
+                    -- MS/Unicode
+                info.index_map = cmap + ttULONG(data+encoding_record+4);
+            end
 
-   info.indexToLocFormat = ttUSHORT(data+info.head + 50);
---]=]
+        elseif enc == ffi.C.STBTT_PLATFORM_ID_UNICODE then
+                -- Mac/iOS has these
+                -- all the encodingIDs are unicode, so we don't bother to check it
+                info.index_map = cmap + ttULONG(data+encoding_record+4);
+        end
+
+        i = i + 1;
+    end
+
+    if (info.index_map == 0) then
+        return false;
+    end
+
+    info.indexToLocFormat = ttUSHORT(data+info.head + 50);
+
     return true;
 end
 
@@ -687,20 +763,20 @@ local function stbtt_FindGlyphIndex(info, unicode_codepoint)
 end
 --]]
 
---[=[
-local function stbtt_GetCodepointShape(const stbtt_fontinfo *info, int unicode_codepoint, stbtt_vertex **vertices)
+
+local function stbtt_GetCodepointShape(info, unicode_codepoint, vertices)
    return stbtt_GetGlyphShape(info, stbtt_FindGlyphIndex(info, unicode_codepoint), vertices);
 end
 
-local function stbtt_setvertex(stbtt_vertex *v, stbtt_uint8 type, stbtt_int32 x, stbtt_int32 y, stbtt_int32 cx, stbtt_int32 cy)
-
-   v.type = type;
-   v.x = (stbtt_int16) x;
-   v.y = (stbtt_int16) y;
-   v.cx = (stbtt_int16) cx;
-   v.cy = (stbtt_int16) cy;
+local function stbtt_setvertex(v, typ, x, y, cx, cy)
+   v.type = typ;
+   v.x = x;
+   v.y = y;
+   v.cx = cx;
+   v.cy = cy;
 end
 
+--[[
 local function int stbtt__GetGlyfOffset(const stbtt_fontinfo *info, int glyph_index)
 
    int g1,g2;
@@ -721,39 +797,46 @@ local function int stbtt__GetGlyfOffset(const stbtt_fontinfo *info, int glyph_in
    return g1==g2 ? -1 : g1; // if length is 0, return -1
 end
 
-local function int stbtt__GetGlyphInfoT2(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1);
-
 int stbtt_GetGlyphBox(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1)
-{
-   if (info.cff.size) {
-      stbtt__GetGlyphInfoT2(info, glyph_index, x0, y0, x1, y1);
-   } else {
-      int g = stbtt__GetGlyfOffset(info, glyph_index);
-      if (g < 0) return 0;
 
-      if (x0) *x0 = ttSHORT(info.data + g + 2);
-      if (y0) *y0 = ttSHORT(info.data + g + 4);
-      if (x1) *x1 = ttSHORT(info.data + g + 6);
-      if (y1) *y1 = ttSHORT(info.data + g + 8);
-   }
+    if (info.cff.size > 0) then
+      local res = stbtt__GetGlyphInfoT2(info, glyph_index);
+      return res;
+    else
+        local g = stbtt__GetGlyfOffset(info, glyph_index);
+        if (g < 0) then return 0; end
+        return {
+            idx = glyph_index;
+            x0 = ttSHORT(info.data + g + 2);
+            y0 = ttSHORT(info.data + g + 4);
+            x1 = ttSHORT(info.data + g + 6);
+            y1 = ttSHORT(info.data + g + 8);
+        }
+    end
+
    return 1;
-}
+end
 
 int stbtt_GetCodepointBox(const stbtt_fontinfo *info, int codepoint, int *x0, int *y0, int *x1, int *y1)
 {
    return stbtt_GetGlyphBox(info, stbtt_FindGlyphIndex(info,codepoint), x0,y0,x1,y1);
 }
 
-local function stbtt_IsGlyphEmpty(const stbtt_fontinfo *info, int glyph_index)
+local function stbtt_IsGlyphEmpty(info, glyph_index)
 
-   stbtt_int16 numberOfContours;
-   int g;
-   if (info.cff.size)
-      return stbtt__GetGlyphInfoT2(info, glyph_index, NULL, NULL, NULL, NULL) == 0;
-   g = stbtt__GetGlyfOffset(info, glyph_index);
-   if (g < 0) return 1;
-   numberOfContours = ttSHORT(info.data + g);
-   return numberOfContours == 0;
+    local numberOfContours;
+    local g;
+    
+    if (info.cff.size > 0) then
+        return stbtt__GetGlyphInfoT2(info, glyph_index) ~= nil;
+    end
+
+    local g = stbtt__GetGlyfOffset(info, glyph_index);
+    if (g < 0) then return true; end
+
+    local numberOfContours = ttSHORT(info.data + g);
+    
+    return numberOfContours == 0;
 end
 
 local function int stbtt__close_shape(stbtt_vertex *vertices, int num_vertices, int was_off, int start_off,
@@ -772,13 +855,13 @@ local function int stbtt__close_shape(stbtt_vertex *vertices, int num_vertices, 
    return num_vertices;
 }
 
-local function int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, stbtt_vertex **pvertices)
-{
+local function stbtt__GetGlyphShapeTT(info, glyph_index, stbtt_vertex **pvertices)
+
    stbtt_int16 numberOfContours;
    stbtt_uint8 *endPtsOfContours;
    stbtt_uint8 *data = info.data;
    stbtt_vertex *vertices=0;
-   int num_vertices=0;
+   local num_vertices=0;
    int g = stbtt__GetGlyfOffset(info, glyph_index);
 
    *pvertices = NULL;
@@ -787,8 +870,9 @@ local function int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_
 
    numberOfContours = ttSHORT(data + g);
 
-   if (numberOfContours > 0) {
-      stbtt_uint8 flags=0,flagcount;
+    if (numberOfContours > 0) then
+      local flags=0;
+      local flagcount=0;
       stbtt_int32 ins, i,j=0,m,n, next_move, was_off=0, off, start_off=0;
       stbtt_int32 x,y,cx,cy,sx,sy, scx,scy;
       stbtt_uint8 *points;
@@ -798,17 +882,19 @@ local function int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_
 
       n = 1+ttUSHORT(endPtsOfContours + numberOfContours*2-2);
 
-      m = n + 2*numberOfContours;  // a loose bound on how many vertices we might need
-      vertices = (stbtt_vertex *) STBTT_malloc(m * sizeof(vertices[0]), info.userdata);
-      if (vertices == 0)
-         return 0;
+      m = n + 2*numberOfContours;  -- a loose bound on how many vertices we might need
+      --vertices = (stbtt_vertex *) STBTT_malloc(m * sizeof(vertices[0]), info.userdata);
+      local vertices = ffi.new("stbtt_vertex[?]", m, info.userdata)
+      if (vertices == nil) then 
+         return false;
+      end
 
       next_move = 0;
       flagcount=0;
 
-      // in first pass, we load uninterpreted data into the allocated array
-      // above, shifted to the end of the array so we won't overwrite it when
-      // we create our final data starting from the front
+      -- in first pass, we load uninterpreted data into the allocated array
+      -- above, shifted to the end of the array so we won't overwrite it when
+      -- we create our final data starting from the front
 
       off = m - n; // starting offset for uninterpreted data, regardless of how m ends up being calculated
 
@@ -910,7 +996,7 @@ local function int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_
          }
       }
       num_vertices = stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
-   } else if (numberOfContours == -1) {
+    elseif (numberOfContours == -1) then
       // Compound shapes.
       int more = 1;
       stbtt_uint8 *comp = data + g + 10;
@@ -987,17 +1073,18 @@ local function int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_
          // More components ?
          more = flags & (1<<5);
       }
-   } else if (numberOfContours < 0) {
-      // @TODO other compound variations?
+    elseif (numberOfContours < 0) then
+      -- @TODO other compound variations?
       STBTT_assert(0);
-   } else {
-      // numberOfCounters == 0, do nothing
-   }
+    else
+      -- numberOfCounters == 0, do nothing
+    end
 
-   *pvertices = vertices;
+   pvertices[0] = vertices;
+   
    return num_vertices;
 end
---]=]
+--]]
 
 ffi.cdef[[
 typedef struct
@@ -1013,66 +1100,78 @@ typedef struct
 } stbtt__csctx;
 ]]
 
---[=[
-#define STBTT__CSCTX_INIT(bounds) {bounds,0, 0,0, 0,0, 0,0,0,0, NULL, 0}
 
-local function stbtt__track_vertex(stbtt__csctx *c, stbtt_int32 x, stbtt_int32 y)
-
-   if (x > c.max_x || !c.started) c.max_x = x;
-   if (y > c.max_y || !c.started) c.max_y = y;
-   if (x < c.min_x || !c.started) c.min_x = x;
-   if (y < c.min_y || !c.started) c.min_y = y;
-   c.started = 1;
+local function STBTT__CSCTX_INIT(bounds) 
+    return ffi.new('stbtt__csctx', bounds,0, 0,0, 0,0, 0,0,0,0, nil, 0)
 end
 
-local function stbtt__csctx_v(stbtt__csctx *c, stbtt_uint8 type, stbtt_int32 x, stbtt_int32 y, stbtt_int32 cx, stbtt_int32 cy, stbtt_int32 cx1, stbtt_int32 cy1)
 
-   if (c.bounds) {
+local function stbtt__track_vertex(c, x, y)
+
+   if (x > c.max_x or c.started==0) then c.max_x = x; end
+   if (y > c.max_y or c.started==0) then c.max_y = y; end
+   if (x < c.min_x or c.started==0) then c.min_x = x; end
+   if (y < c.min_y or c.started==0) then c.min_y = y; end
+   c.started = 1;
+
+   return true
+end
+
+local function stbtt__csctx_v(c, typ, x, y, cx, cy, cx1, cy1)
+
+   if (c.bounds ~= 0) then
       stbtt__track_vertex(c, x, y);
-      if (type == STBTT_vcubic) {
+      if (typ == STBTT_vcubic) then
          stbtt__track_vertex(c, cx, cy);
          stbtt__track_vertex(c, cx1, cy1);
-      }
-   } else {
-      stbtt_setvertex(&c.pvertices[c.num_vertices], type, x, y, cx, cy);
-      c.pvertices[c.num_vertices].cx1 = (stbtt_int16) cx1;
-      c.pvertices[c.num_vertices].cy1 = (stbtt_int16) cy1;
-   }
-   c.num_vertices++;
+      end
+   else 
+      stbtt_setvertex(c.pvertices[c.num_vertices], typ, x, y, cx, cy);
+      c.pvertices[c.num_vertices].cx1 = cx1;
+      c.pvertices[c.num_vertices].cy1 = cy1;
+   end
+
+   c.num_vertices = c.num_vertices + 1;
 end
 
-local function stbtt__csctx_close_shape(stbtt__csctx *ctx)
-
-   if (ctx.first_x != ctx.x || ctx.first_y != ctx.y)
-      stbtt__csctx_v(ctx, STBTT_vline, (int)ctx.first_x, (int)ctx.first_y, 0, 0, 0, 0);
+local function stbtt__csctx_close_shape(ctx)
+   if ((ctx.first_x ~= ctx.x) or (ctx.first_y ~= ctx.y)) then
+      stbtt__csctx_v(ctx, STBTT_vline, ctx.first_x, ctx.first_y, 0, 0, 0, 0);
+   end
 end
 
-local function stbtt__csctx_rmove_to(stbtt__csctx *ctx, float dx, float dy)
-
+local function stbtt__csctx_rmove_to(ctx, dx, dy)
    stbtt__csctx_close_shape(ctx);
-   ctx.first_x = ctx.x = ctx.x + dx;
-   ctx.first_y = ctx.y = ctx.y + dy;
-   stbtt__csctx_v(ctx, STBTT_vmove, (int)ctx.x, (int)ctx.y, 0, 0, 0, 0);
+   --ctx.first_x = ctx.x = ctx.x + dx;
+   ctx.first_x = ctx.x + dx;
+   ctx.x = ctx.x + dx;
+
+   --ctx.first_y = ctx.y = ctx.y + dy;
+   ctx.first_y = ctx.y + dy;
+   ctx.y = ctx.y + dy;
+   
+   stbtt__csctx_v(ctx, STBTT_vmove, ctx.x, ctx.y, 0, 0, 0, 0);
 end
 
-local function stbtt__csctx_rline_to(stbtt__csctx *ctx, float dx, float dy)
+local function stbtt__csctx_rline_to(ctx, dx, dy)
 
-   ctx.x += dx;
-   ctx.y += dy;
-   stbtt__csctx_v(ctx, STBTT_vline, (int)ctx.x, (int)ctx.y, 0, 0, 0, 0);
+   ctx.x = ctx.x + dx;
+   ctx.y = ctx.y + dy;
+   return stbtt__csctx_v(ctx, STBTT_vline, ctx.x, ctx.y, 0, 0, 0, 0);
 end
 
-local function stbtt__csctx_rccurve_to(stbtt__csctx *ctx, float dx1, float dy1, float dx2, float dy2, float dx3, float dy3)
+local function stbtt__csctx_rccurve_to(ctx, dx1, dy1, dx2, dy2, dx3, dy3)
 
-   float cx1 = ctx.x + dx1;
-   float cy1 = ctx.y + dy1;
-   float cx2 = cx1 + dx2;
-   float cy2 = cy1 + dy2;
+   local cx1 = ctx.x + dx1;
+   local cy1 = ctx.y + dy1;
+   local cx2 = cx1 + dx2;
+   local cy2 = cy1 + dy2;
    ctx.x = cx2 + dx3;
    ctx.y = cy2 + dy3;
-   stbtt__csctx_v(ctx, STBTT_vcubic, (int)ctx.x, (int)ctx.y, (int)cx1, (int)cy1, (int)cx2, (int)cy2);
+   return stbtt__csctx_v(ctx, STBTT_vcubic, ctx.x, ctx.y, cx1, cy1, cx2, cy2);
 end
 
+--[=[
 local function stbtt__buf stbtt__get_subr(stbtt__buf idx, int n)
 
     local count = stbtt__cff_index_count(&idx);
@@ -1395,26 +1494,42 @@ local function int stbtt__GetGlyphShapeT2(const stbtt_fontinfo *info, int glyph_
    *pvertices = NULL;
    return 0;
 }
-
-local function int stbtt__GetGlyphInfoT2(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1)
-{
-   stbtt__csctx c = STBTT__CSCTX_INIT(1);
-   int r = stbtt__run_charstring(info, glyph_index, &c);
-   if (x0)  *x0 = r ? c.min_x : 0;
-   if (y0)  *y0 = r ? c.min_y : 0;
-   if (x1)  *x1 = r ? c.max_x : 0;
-   if (y1)  *y1 = r ? c.max_y : 0;
-   return r ? c.num_vertices : 0;
-}
-
-int stbtt_GetGlyphShape(const stbtt_fontinfo *info, int glyph_index, stbtt_vertex **pvertices)
-{
-   if (!info.cff.size)
-      return stbtt__GetGlyphShapeTT(info, glyph_index, pvertices);
-   else
-      return stbtt__GetGlyphShapeT2(info, glyph_index, pvertices);
-}
 --]=]
+local function stbtt__GetGlyphInfoT2(info, glyph_index)
+    local c = STBTT__CSCTX_INIT(1);
+    local r = stbtt__run_charstring(info, glyph_index, c);
+    if r== 0 then
+        return {
+            idx = 0;
+            x0 = 0;
+            y0=0;
+            x1 = 0;
+            y1 = 0;
+        }
+    end
+
+    return {
+        idx = c.num_vertices;
+        x0 = c.min_x;
+        y0=c.min_y;
+        x1 = max_x;
+        y1 = max_y;
+    }
+end
+
+-- stbtt_vertex **pvertices
+--[[
+local function stbtt_GetGlyphShape(info, glyph_index, pvertices)
+
+    if (info.cff.size == 0) then
+      return stbtt__GetGlyphShapeTT(info, glyph_index, pvertices);
+    else
+      return stbtt__GetGlyphShapeT2(info, glyph_index, pvertices);
+    end
+
+    return false
+end
+--]]
 
 local function stbtt_GetGlyphHMetrics(info, glyph_index)
     local advanceWidth = 0;
@@ -1729,7 +1844,6 @@ local function stbtt_GetCodepointHMetrics(info, codepoint)
    return stbtt_GetGlyphHMetrics(info, stbtt_FindGlyphIndex(info,codepoint));
 end
 
-
 local function stbtt_GetFontVMetrics(info)
     -- ascent, descent, lineGap
     return ttSHORT(info.data+info.hhea + 4),
@@ -1737,19 +1851,16 @@ local function stbtt_GetFontVMetrics(info)
         ttSHORT(info.data+info.hhea + 8)
 end
 
+local function  stbtt_GetFontVMetricsOS2(info)
+    local tab = stbtt__find_table(info.data, info.fontstart, "OS/2");
+    if (tab == 0) then
+      return false;
+    end
 
---[[
-int  stbtt_GetFontVMetricsOS2(const stbtt_fontinfo *info, int *typoAscent, int *typoDescent, int *typoLineGap)
-{
-   int tab = stbtt__find_table(info.data, info.fontstart, "OS/2");
-   if (!tab)
-      return 0;
-   if (typoAscent ) *typoAscent  = ttSHORT(info.data+tab + 68);
-   if (typoDescent) *typoDescent = ttSHORT(info.data+tab + 70);
-   if (typoLineGap) *typoLineGap = ttSHORT(info.data+tab + 72);
-   return 1;
-}
---]]
+    --return typoAscent, typeDescent, typeLineGap
+   return ttSHORT(info.data+tab + 68),ttSHORT(info.data+tab + 70), ttSHORT(info.data+tab + 72)
+end
+
 
 local function stbtt_GetFontBoundingBox(info )
     -- int *x0, int *y0, int *x1, int *y1
@@ -1788,88 +1899,63 @@ local function stbtt_GetNumberOfFonts(data)
 end
 
 local function stbtt_InitFont(info, data, offset)
+    offset = offset or 0;
 
    return stbtt_InitFont_internal(info, data, offset);
 end
 
+-- The fontinfo object
+local stbtt_fontinfo = {}
+-- Create a default constructor
+setmetatable(stbtt_fontinfo, {
+	__call = function(self, ...)
+		return self:new(...);
+	end,
+})
+local stbtt_fontinfo_mt = {
+    __index = stbtt_fointinfo;
+}
+
+function stbtt_fontinfo.new(self, params)
+	local obj = params or {}
+
+    obj.data = obj.data or nil;
+    obj.userdata = obj.userdata or nil;
+    obj.fontstart = obj.fontstart or 0;
+    obj.numGlyphs = obj.numGlyphs or 0;
+    
+    -- offsets from start of file to a few tables
+    obj.loca = obj.loca or 0;
+    obj.head = obj.head or 0;
+    obj.glyf = obj.glyf or 0;
+    obj.hhea = obj.hhea or 0;
+    obj.hmtx = obj.hmtx or 0;
+    obj.kern = obj.kern or 0;
+    obj.gpos = obj.gpos or 0;
+
+    obj.index_map = obj.index_map or 0;
+    obj.indexToLocFormat = obj.indexToLocFormat or 0;
+
+--[[
+    stbtt__buf cff;                    // cff font data
+    stbtt__buf charstrings;            // the charstring index
+    stbtt__buf gsubrs;                 // global charstring subroutines index
+    stbtt__buf subrs;                  // private charstring subroutines index
+    stbtt__buf fontdicts;              // array of font dicts
+    stbtt__buf fdselect;               // map from glyph to fontdict
+--]] 
+
+    setmetatable(obj, stbtt_fontinfo_mt);
+
+    stbtt_InitFont(obj, obj.data, obj.fontstart)
+
+    return obj;
+end
 
 
 local exports = {
+    stbtt_fontinfo = stbtt_fontinfo;
     stbtt_InitFont = stbtt_InitFont,
 }
 
 return exports
-
---[[
-local exports = {
-    int stbtt_InitFont(stbtt_fontinfo *info, const unsigned char *data, int offset);
-
-int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codepoint);
-
-float stbtt_ScaleForPixelHeight(const stbtt_fontinfo *info, float pixels);
-float stbtt_ScaleForMappingEmToPixels(const stbtt_fontinfo *info, float pixels);
-void stbtt_GetFontVMetrics(const stbtt_fontinfo *info, int *ascent, int *descent, int *lineGap);
-int  stbtt_GetFontVMetricsOS2(const stbtt_fontinfo *info, int *typoAscent, int *typoDescent, int *typoLineGap);
-void stbtt_GetFontBoundingBox(const stbtt_fontinfo *info, int *x0, int *y0, int *x1, int *y1);
-void stbtt_GetCodepointHMetrics(const stbtt_fontinfo *info, int codepoint, int *advanceWidth, int *leftSideBearing);
-int  stbtt_GetCodepointKernAdvance(const stbtt_fontinfo *info, int ch1, int ch2);
-int stbtt_GetCodepointBox(const stbtt_fontinfo *info, int codepoint, int *x0, int *y0, int *x1, int *y1);
-
-void stbtt_GetGlyphHMetrics(const stbtt_fontinfo *info, int glyph_index, int *advanceWidth, int *leftSideBearing);
-int  stbtt_GetGlyphKernAdvance(const stbtt_fontinfo *info, int glyph1, int glyph2);
-int  stbtt_GetGlyphBox(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1);
-
-    int stbtt_GetNumberOfFonts(const unsigned char *data);
-    int stbtt_GetFontOffsetForIndex(const unsigned char *data, int index);
-
-    int stbtt_IsGlyphEmpty(const stbtt_fontinfo *info, int glyph_index);
-
-int stbtt_GetCodepointShape(const stbtt_fontinfo *info, int unicode_codepoint, stbtt_vertex **vertices);
-int stbtt_GetGlyphShape(const stbtt_fontinfo *info, int glyph_index, stbtt_vertex **vertices);
-
-void stbtt_FreeShape(const stbtt_fontinfo *info, stbtt_vertex *vertices);
-
-}
---]]
-
---[[
-------------------------------------------------------------------------------
-This software is available under 2 licenses -- choose whichever you prefer.
-------------------------------------------------------------------------------
-ALTERNATIVE A - MIT License
-Copyright (c) 2017 Sean Barrett
-Permission is hereby granted, free of charge, to any person obtaining a copy of 
-this software and associated documentation files (the "Software"), to deal in 
-the Software without restriction, including without limitation the rights to 
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
-of the Software, and to permit persons to whom the Software is furnished to do 
-so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all 
-copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
-SOFTWARE.
-------------------------------------------------------------------------------
-ALTERNATIVE B - Public Domain (www.unlicense.org)
-This is free and unencumbered software released into the public domain.
-Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
-software, either in source code form or as a compiled binary, for any purpose, 
-commercial or non-commercial, and by any means.
-In jurisdictions that recognize copyright laws, the author or authors of this 
-software dedicate any and all copyright interest in the software to the public 
-domain. We make this dedication for the benefit of the public at large and to 
-the detriment of our heirs and successors. We intend this dedication to be an 
-overt act of relinquishment in perpetuity of all present and future rights to 
-this software under copyright law.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
-ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-------------------------------------------------------------------------------
---]]
