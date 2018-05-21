@@ -72,7 +72,7 @@ enum { // encodingID for STBTT_PLATFORM_ID_MICROSOFT
    STBTT_MS_EID_SHIFTJIS      =2,
    STBTT_MS_EID_PRC      =3,
    STBTT_MS_EID_BIGFIVE      =4,
-   STBTT_MS_EID_JOHAB      =5,
+   STBTT_MS_EID_JOHAB      =6,
    STBTT_MS_EID_UNICODE_FULL  =10
 };
 
@@ -103,9 +103,17 @@ enum { // languageID for STBTT_PLATFORM_ID_MAC
    STBTT_MAC_LANG_ITALIAN      =3 ,   STBTT_MAC_LANG_CHINESE_TRAD =19
 };
 ]]
---   typedef char stbtt__check_size32[sizeof(stbtt_int32)==4 ? 1 : -1];
---   typedef char stbtt__check_size16[sizeof(stbtt_int16)==2 ? 1 : -1];
 
+-- list of valid values for 'encoding_id' for
+-- TT_PLATFORM_MICROSOFT
+local TT_MS_ID_SYMBOL_CS    = 0;
+local TT_MS_ID_UNICODE_CS   = 1;
+local TT_MS_ID_SJIS         = 2;
+local TT_MS_ID_PRC          = 3;
+local TT_MS_ID_BIG_5        = 4;
+local TT_MS_ID_WANSUNG      = 5;
+local TT_MS_ID_JOHAB        = 6;
+local TT_MS_ID_UCS_4        = 10;
 
 local STBTT_ifloor = math.floor
 local STBTT_iceil = math.ceil
@@ -1875,8 +1883,8 @@ local function stbtt_InitFont_internal(self)
 --print("enc: ", enc)
         if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
             local msfteid = ttUSHORT(data+encoding_record+2)
-            if msfteid == ffi.C.STBTT_MS_EID_UNICODE_BMP or
-                msfteid == ffi.C.STBTT_MS_EID_UNICODE_FULL then
+            if msfteid == TT_MS_ID_UNICODE_CS or
+                msfteid == TT_MS_ID_UNICODE_FULL then
                     -- MS/Unicode
                 self.index_map = cmap.offset + ttULONG(data+encoding_record+4);
             end
