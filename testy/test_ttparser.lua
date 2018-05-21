@@ -4,16 +4,21 @@ local ffi = require("ffi")
 local tt = require("truetype_parser")
 local mmap = require("mmap_win32")
 
+local function printTables(info)
+    print("==== TABLES ====")
+    print("Tag    Order   Offset   Length")
+    if info.tables then
+        for k, v in pairs(info.tables) do
+            print(k, v.index, v.offset, v.length)
+        end
+    end
+end
+
 local function printFontInfo(info)
     print("==== FONT INFO ====")
-    --print("cmap: ", cmap)
-    print("loca: ", info.loca);
-    print("head: ", info.head);
-    print("glyf: ", info.glyf);
-    print("hhea: ", info.hhea);
-    print("hmtx: ", info.hmtx);
-    print("kern: ", info.kern);
-    print("gpos: ", info.gpos);
+    print("  Num Tables: ", info.numTables)
+
+    printTables(info)
 end
 
 -- memory map the file so we have a pointer to start with

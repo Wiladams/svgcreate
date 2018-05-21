@@ -10,6 +10,9 @@ The original source does everything from parsing truetype fonts to rendering
 them into bitmaps.  In this application, we're only interested in the 
 parsing of the files, so that we can generate SVG path information 
 per glyph, so all the rendering has been removed.   
+
+Reference
+https://developer.apple.com/fonts/TrueType-Reference-Manual/
 --]]
 
 
@@ -67,6 +70,9 @@ enum { // encodingID for STBTT_PLATFORM_ID_MICROSOFT
    STBTT_MS_EID_SYMBOL        =0,
    STBTT_MS_EID_UNICODE_BMP   =1,
    STBTT_MS_EID_SHIFTJIS      =2,
+   STBTT_MS_EID_PRC      =3,
+   STBTT_MS_EID_BIGFIVE      =4,
+   STBTT_MS_EID_JOHAB      =5,
    STBTT_MS_EID_UNICODE_FULL  =10
 };
 
@@ -135,22 +141,14 @@ local function STBTT_memset(a,b)
     --define STBTT_memset       memset
 end
 
---[[
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-////
-////   INTERFACE
-////
-////
---]]
 
 ffi.cdef[[
 // private structure
 typedef struct
 {
-   unsigned char *data;
-   int cursor;
-   int size;
+   uint8_t *data;
+   size_t cursor;
+   size_t size;
 } stbtt__buf;
 ]]
 
@@ -188,16 +186,11 @@ struct stbtt_fontinfo
 ]]
 --]=]
 
-
-
--- convenience
---local stbtt_fontinfo = ffi.typeof('struct stbtt_fontinfo');
-
 -- commands for path drawing
-local STBTT_vmove=1;
-local STBTT_vline = 2;
-local STBTT_vcurve = 3;
-local STBTT_vcubic = 4;
+local STBTT_vmove   = 1;
+local STBTT_vline   = 2;
+local STBTT_vcurve  = 3;
+local STBTT_vcubic  = 4;
 
 
 
@@ -455,9 +448,8 @@ local function stbtt__isfont(font)
 end
 
 
--- @OPTIMIZE: binary search
--- WAA - should load all tables at once
--- into a table directory of the fontinfo
+
+
 local function stbtt__find_table(data, fontstart, tag)
     local tagptr = ffi.cast('uint8_t *', tag)
 
@@ -534,138 +526,6 @@ local function stbtt__get_subrs(cff, fontdict)
 end
 
 
-local function stbtt_InitFont_internal(info, data, fontstart)
-
-   local cmap, t;
-   local numTables;
-
-   info.data = data;
-   info.fontstart = fontstart;
-   info.cff = stbtt__new_buf(nil, 0);
-   cmap = stbtt__find_table(data, fontstart, "cmap");       -- required
-
-
-   info.loca = stbtt__find_table(data, fontstart, "loca"); -- required
-   info.head = stbtt__find_table(data, fontstart, "head"); -- required
-   info.glyf = stbtt__find_table(data, fontstart, "glyf"); -- required
-   info.hhea = stbtt__find_table(data, fontstart, "hhea"); -- required
-   info.hmtx = stbtt__find_table(data, fontstart, "hmtx"); -- required
-   info.kern = stbtt__find_table(data, fontstart, "kern"); -- not required
-   info.gpos = stbtt__find_table(data, fontstart, "GPOS"); -- not required
-
-
-    if ((cmap==0) or (info.head==0) or (info.hhea==0) or (info.hmtx==0)) then
-      return false;
-    end
-
-    if (info.glyf ~= 0) then
-      -- required for truetype
-      if (info.loca==0) then 
-        return false;
-      end
-    else
-print("Initialization for CFF")
-      -- initialization for CFF / Type2 fonts (OTF)
-      local b = ffi.new('stbtt__buf');
-      local topdict = ffi.new('stbtt__buf');
-      local topdictidx = ffi.new('stbtt__buf');
-      local cstype = 2;
-      local charstrings = 0;
-      local fdarrayoff = 0; 
-      local fdselectoff = 0;
-      local cff=0;
-
-      cff = stbtt__find_table(data, fontstart, "CFF ");
-      if (cff == 0) then 
-        return false;
-      end
-
-      info.fontdicts = stbtt__new_buf(nil, 0);
-      info.fdselect = stbtt__new_buf(nil, 0);
-  
-      -- @TODO this should use size from table (not 512MB)
-      info.cff = stbtt__new_buf(data+cff, 512*1024*1024);
-      b = info.cff;
-
-      -- read the header
-      stbtt__buf_skip(b, 2);
-      stbtt__buf_seek(b, stbtt__buf_get8(b)); -- hdrsize
-
-      -- @TODO the name INDEX could list multiple fonts,
-      -- but we just use the first one.
-      stbtt__cff_get_index(b);  -- name INDEX
-      topdictidx = stbtt__cff_get_index(b);
-      topdict = stbtt__cff_index_get(topdictidx, 0);
-      stbtt__cff_get_index(b);  -- string INDEX
-      info.gsubrs = stbtt__cff_get_index(b);
-  --[[
-      stbtt__dict_get_ints(topdict, 17, 1, &charstrings);
-      stbtt__dict_get_ints(topdict, 0x100 | 6, 1, &cstype);
-      stbtt__dict_get_ints(topdict, 0x100 | 36, 1, &fdarrayoff);
-      stbtt__dict_get_ints(topdict, 0x100 | 37, 1, &fdselectoff);
-      info.subrs = stbtt__get_subrs(b, topdict);
-
-      // we only support Type 2 charstrings
-      if (cstype != 2) return 0;
-      if (charstrings == 0) return 0;
-
-      if (fdarrayoff) {
-         // looks like a CID font
-         if (!fdselectoff) return 0;
-         stbtt__buf_seek(b, fdarrayoff);
-         info.fontdicts = stbtt__cff_get_index(b);
-         info.fdselect = stbtt__buf_range(b, fdselectoff, b.size-fdselectoff);
-      }
---]]
-      stbtt__buf_seek(b, charstrings);
-      info.charstrings = stbtt__cff_get_index(b);
-
-    end
-
-   t = stbtt__find_table(data, fontstart, "maxp");
-   if (t ~= 0) then
-      info.numGlyphs = ttUSHORT(data+t+4);
-   else
-      info.numGlyphs = 0xffff;
-   end
-
-    -- find a cmap encoding table we understand *now* to avoid searching
-    -- later. (todo: could make this installable)
-    -- the same regardless of glyph.
-    numTables = ttUSHORT(data + cmap + 2);
---print("NumTables: ", numTables)
-    info.index_map = 0;
-    local i = 0;
-    while (i < numTables) do
-        local encoding_record = cmap + 4 + 8 * i;
-        -- find an encoding we understand:
-        local enc = ttUSHORT(data+encoding_record);
---print("enc: ", enc)
-        if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
-            local msfteid = ttUSHORT(data+encoding_record+2)
-            if msfteid == ffi.C.STBTT_MS_EID_UNICODE_BMP or
-                msfteid == ffi.C.STBTT_MS_EID_UNICODE_FULL then
-                    -- MS/Unicode
-                info.index_map = cmap + ttULONG(data+encoding_record+4);
-            end
-
-        elseif enc == ffi.C.STBTT_PLATFORM_ID_UNICODE then
-                -- Mac/iOS has these
-                -- all the encodingIDs are unicode, so we don't bother to check it
-                info.index_map = cmap + ttULONG(data+encoding_record+4);
-        end
-
-        i = i + 1;
-    end
-
-    if (info.index_map == 0) then
-        return false;
-    end
-
-    info.indexToLocFormat = ttUSHORT(data+info.head + 50);
-
-    return true;
-end
 
 --[[
 local function stbtt_FindGlyphIndex(info, unicode_codepoint)
@@ -1898,11 +1758,6 @@ local function stbtt_GetNumberOfFonts(data)
    return stbtt_GetNumberOfFonts_internal(data);
 end
 
-local function stbtt_InitFont(info, data, offset)
-    offset = offset or 0;
-
-   return stbtt_InitFont_internal(info, data, offset);
-end
 
 -- The fontinfo object
 local stbtt_fontinfo = {}
@@ -1916,6 +1771,135 @@ local stbtt_fontinfo_mt = {
     __index = stbtt_fointinfo;
 }
 
+local function hasRequiredHeaders(self)
+    -- first check all required headers are in place
+    if not self.headers["cmap"] and 
+        self.headers["head"] and 
+        self.headers["hhea"] and
+        self.headers["hmtx"] then
+            return false;
+        end
+
+    
+end
+
+local function stbtt_InitFont_internal(self)
+   --self.cff = stbtt__new_buf(nil, 0);
+   --info.loca = stbtt__find_table(data, fontstart, "loca"); -- required
+   --info.head = stbtt__find_table(data, fontstart, "head"); -- required
+   --info.glyf = stbtt__find_table(data, fontstart, "glyf"); -- required
+   --info.hhea = stbtt__find_table(data, fontstart, "hhea"); -- required
+   --info.hmtx = stbtt__find_table(data, fontstart, "hmtx"); -- required
+  -- info.kern = stbtt__find_table(data, fontstart, "kern"); -- not required
+   --info.gpos = stbtt__find_table(data, fontstart, "GPOS"); -- not required
+
+    if (obj.tables["glyf"]) then
+      -- required for truetype
+      if (not info.tables["loca"]) then 
+        return false;
+      end
+    else
+      -- initialization for CFF / Type2 fonts (OTF)
+      local b = ffi.new('stbtt__buf');
+      local topdict = ffi.new('stbtt__buf');
+      local topdictidx = ffi.new('stbtt__buf');
+      local cstype = 2;
+      local charstrings = 0;
+      local fdarrayoff = 0; 
+      local fdselectoff = 0;
+      local cff=0;
+
+      --cff = stbtt__find_table(data, fontstart, "CFF ");
+      local cff = obj.tables["CFF "]
+      if (not cff) then 
+        return false;
+      end
+
+      info.fontdicts = stbtt__new_buf(nil, 0);
+      info.fdselect = stbtt__new_buf(nil, 0);
+  
+      -- @TODO this should use size from table (not 512MB)
+      info.cff = stbtt__new_buf(data+cff, 512*1024*1024);
+      b = info.cff;
+
+      -- read the header
+      stbtt__buf_skip(b, 2);
+      stbtt__buf_seek(b, stbtt__buf_get8(b)); -- hdrsize
+
+      -- @TODO the name INDEX could list multiple fonts,
+      -- but we just use the first one.
+      stbtt__cff_get_index(b);  -- name INDEX
+      topdictidx = stbtt__cff_get_index(b);
+      topdict = stbtt__cff_index_get(topdictidx, 0);
+      stbtt__cff_get_index(b);  -- string INDEX
+      info.gsubrs = stbtt__cff_get_index(b);
+  --[[
+      stbtt__dict_get_ints(topdict, 17, 1, &charstrings);
+      stbtt__dict_get_ints(topdict, 0x100 | 6, 1, &cstype);
+      stbtt__dict_get_ints(topdict, 0x100 | 36, 1, &fdarrayoff);
+      stbtt__dict_get_ints(topdict, 0x100 | 37, 1, &fdselectoff);
+      info.subrs = stbtt__get_subrs(b, topdict);
+
+      // we only support Type 2 charstrings
+      if (cstype != 2) return 0;
+      if (charstrings == 0) return 0;
+
+      if (fdarrayoff) {
+         // looks like a CID font
+         if (!fdselectoff) return 0;
+         stbtt__buf_seek(b, fdarrayoff);
+         info.fontdicts = stbtt__cff_get_index(b);
+         info.fdselect = stbtt__buf_range(b, fdselectoff, b.size-fdselectoff);
+      }
+--]]
+      stbtt__buf_seek(b, charstrings);
+      self.charstrings = stbtt__cff_get_index(b);
+    end
+
+   local maxp = self.tables["maxp"];
+   local cmap = self.tables['cmap'];
+
+   if (maxp) then
+      --info.numGlyphs = ttUSHORT(obj.data+maxp.offset+4);
+      self.numGlyphs = maxp.numGlyphs;
+   else
+      self.numGlyphs = 0;
+   end
+
+    self.index_map = 0;
+    local i = 0;
+    while (i < self.numTables) do
+        local encoding_record = cmap.offset + 4 + 8 * i;
+        -- find an encoding we understand:
+        local enc = ttUSHORT(data+encoding_record);
+--print("enc: ", enc)
+        if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
+            local msfteid = ttUSHORT(data+encoding_record+2)
+            if msfteid == ffi.C.STBTT_MS_EID_UNICODE_BMP or
+                msfteid == ffi.C.STBTT_MS_EID_UNICODE_FULL then
+                    -- MS/Unicode
+                self.index_map = cmap.offset + ttULONG(data+encoding_record+4);
+            end
+
+        elseif enc == ffi.C.STBTT_PLATFORM_ID_UNICODE then
+                -- Mac/iOS has these
+                -- all the encodingIDs are unicode, so we don't bother to check it
+                info.index_map = cmap.offset + ttULONG(data+encoding_record+4);
+        end
+
+        i = i + 1;
+    end
+
+    if (self.index_map == 0) then
+        return false;
+    end
+
+    self.indexToLocFormat = ttUSHORT(data+self.tables['head'].offset + 50);
+
+    return true;
+end
+
+
 function stbtt_fontinfo.new(self, params)
 	local obj = params or {}
 
@@ -1925,16 +1909,25 @@ function stbtt_fontinfo.new(self, params)
     obj.numGlyphs = obj.numGlyphs or 0;
     
     -- offsets from start of file to a few tables
-    obj.loca = obj.loca or 0;
-    obj.head = obj.head or 0;
-    obj.glyf = obj.glyf or 0;
-    obj.hhea = obj.hhea or 0;
-    obj.hmtx = obj.hmtx or 0;
-    obj.kern = obj.kern or 0;
-    obj.gpos = obj.gpos or 0;
+    if obj.data ~= nil then
+        obj.tables = stbtt_fontinfo.readTableDirectory(obj);
+    end
+
+    -- check to make sure the font has the required headers
+    if not hasRequiredHeaders(obj) then return nil end
+
+    --obj.loca = obj.loca or 0;
+    --obj.head = obj.head or 0;
+    --obj.glyf = obj.glyf or 0;
+    --obj.hhea = obj.hhea or 0;
+    --obj.hmtx = obj.hmtx or 0;
+    --obj.kern = obj.kern or 0;
+    --obj.gpos = obj.gpos or 0;
 
     obj.index_map = obj.index_map or 0;
     obj.indexToLocFormat = obj.indexToLocFormat or 0;
+
+    stbtt_InitFont_internal(obj)
 
 --[[
     stbtt__buf cff;                    // cff font data
@@ -1946,16 +1939,122 @@ function stbtt_fontinfo.new(self, params)
 --]] 
 
     setmetatable(obj, stbtt_fontinfo_mt);
-
-    stbtt_InitFont(obj, obj.data, obj.fontstart)
-
     return obj;
 end
 
 
+-- function used to calculate a table's checksum
+-- This is useful to confirm the integrity of the
+-- table data
+local function CalcTableChecksum(tbl, numberOfBytesInTable)
+    local sum = ffi.cast('uint32_t',0);
+    local tblptr = ffi.cast('uint32_t *', tbl)
+    local nLongs = (numberOfBytesInTable + 3) / 4;
+    while (nLongs > 0) do
+        sum = sum + table[0];
+        tableptr = tblptr + 1;
+        nLongs = nLongs - 1;
+    end
+
+    return sum;
+end
+
+--[[
+    readTableDirectory(data, fontstart)
+
+    Get the offset and length information
+    for all of the tables that are in a font
+
+    The offset subtable is the first thing in the font.
+    We'll fill in all the attributes, including the
+    offsets table.
+]]
+function stbtt_fontinfo.readTableDirectory(self)
+    self.scalerType = ttULONG(self.data+self.fontstart+0)
+    self.numTables = tonumber(ttUSHORT(self.data+self.fontstart+4));
+    self.searchRange = ttUSHORT(self.data+self.fontstart+6);
+    self.entrySelector = ttUSHORT(self.data+self.fontstart+8);
+    self.rangeShift = ttUSHORT(self.data+self.fontstart+10);
+    
+    if self.numTables < 1 then return nil end
+
+    -- The table directory starts 12 bytes from the
+    -- font offset.
+    
+    local tabledir = self.fontstart + 12;
+    local res = {}
+    local i = 0;
+    while (i < self.numTables) do
+        local loc = tabledir + 16*i;
+        local name = ffi.string(self.data+loc+0, 4);
+        res[name] = {
+            name = name, 
+            index = i;
+            offset = tonumber(ttULONG(self.data+loc+8)),
+            length = tonumber(ttULONG(self.data+loc+12))
+        }
+        res.data = self.data + res.offset;
+
+        i = i + 1;
+    end
+
+    -- Read in the required tables
+    stbtt_fontinfo.readTable_maxp(res['maxp'])
+    stbtt_fontinfo.readTable_head(res['head'])
+    --stbtt_fontinfo.readTable_cmap(res['cmap'])
+
+    return res;
+end
+
+-- Read the contents of the 'maxp' table
+function stbtt_fontinfo.readTable_maxp(self)
+    if not self then return false end
+
+    self.version = ttULONG(self.data+0);
+    self.numGlyphs = tonumber(ttUSHORT(self.data+4));
+    self.maxPoints = ttUSHORT(self.data+6);
+    self.maxContours = ttUSHORT(self.data+8);
+    self.maxComponentPoints = ttUSHORT(self.data+10);
+    self.maxComponentContours = ttUSHORT(self.data+12);
+    self.maxZones = ttUSHORT(self.data+14);
+    self.maxTwilightPoints = ttUSHORT(self.data+16);
+    self.maxStorage = ttUSHORT(self.data+18);
+    self.maxFunctionDefs = ttUSHORT(self.data+20);
+    self.maxInstructionDefs = ttUSHORT(self.data+22);
+    self.maxStackElements = ttUSHORT(self.data+24);
+    self.maxSizeOfInstructions = ttUSHORT(self.data+26);
+    self.maxComponentElements = ttUSHORT(self.data+28);
+    self.maxComponentDepth = ttUSHORT(self.data+30);
+
+    return self;
+end
+
+function stbtt_fontinfo.readTable_head(self)
+    if not self then return false end
+
+    self.version = ttULONG(self.data+0);
+    self.fontRevision = ttULONG(self.data+4);
+    self.checksumAdjustment = tonumber(ttULONG(self.data+8));
+    self.magicNumber = ttULONG(self.data+12);
+    self.flags = ttUSHORT(self.data+16);
+    self.unitsPerEm = ttUSHORT(self.data+18);
+    self.created = ttULONGLONG(self.data+20);
+    self.modified = ttULONGLONG(self.data+28);
+    self.xMin = ttSHORT(self.data+36);
+    self.yMin = ttSHORT(self.data+38);
+    self.xMax = ttSHORT(self.data+40);
+    self.yMax = ttSHORT(self.data+42);
+    self.macStyle = ttUSHORT(self.data+44);
+    self.lowestRecPPEM = ttUSHORT(self.data+46);
+    self.fontDirectionHint = ttSHORT(self.data+48);
+    self.indexToLocFormat = ttSHORT(self.data+50);
+    self.glyhpDataFormat = ttSHORT(self.data+52);
+
+    return self;
+end
+
 local exports = {
     stbtt_fontinfo = stbtt_fontinfo;
-    stbtt_InitFont = stbtt_InitFont,
 }
 
 return exports
