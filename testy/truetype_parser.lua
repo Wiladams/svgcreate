@@ -1781,10 +1781,10 @@ local stbtt_fontinfo_mt = {
 
 local function hasRequiredHeaders(self)
     -- first check all required headers are in place
-    if not self.headers["cmap"] and 
-        self.headers["head"] and 
-        self.headers["hhea"] and
-        self.headers["hmtx"] then
+    if not self.tables["cmap"] and 
+        self.tables["head"] and 
+        self.tables["hhea"] and
+        self.tables["hmtx"] then
             return false;
         end
 
@@ -1801,9 +1801,9 @@ local function stbtt_InitFont_internal(self)
   -- info.kern = stbtt__find_table(data, fontstart, "kern"); -- not required
    --info.gpos = stbtt__find_table(data, fontstart, "GPOS"); -- not required
 
-    if (obj.tables["glyf"]) then
+    if (self.tables["glyf"]) then
       -- required for truetype
-      if (not info.tables["loca"]) then 
+      if (not self.tables["loca"]) then 
         return false;
       end
     else
@@ -1818,17 +1818,17 @@ local function stbtt_InitFont_internal(self)
       local cff=0;
 
       --cff = stbtt__find_table(data, fontstart, "CFF ");
-      local cff = obj.tables["CFF "]
+      local cff = self.tables["CFF "]
       if (not cff) then 
         return false;
       end
 
-      info.fontdicts = stbtt__new_buf(nil, 0);
-      info.fdselect = stbtt__new_buf(nil, 0);
+      self.fontdicts = stbtt__new_buf(nil, 0);
+      self.fdselect = stbtt__new_buf(nil, 0);
   
       -- @TODO this should use size from table (not 512MB)
-      info.cff = stbtt__new_buf(data+cff, 512*1024*1024);
-      b = info.cff;
+      self.cff = stbtt__new_buf(self.data+cff, 512*1024*1024);
+      b = self.cff;
 
       -- read the header
       stbtt__buf_skip(b, 2);
@@ -1840,7 +1840,7 @@ local function stbtt_InitFont_internal(self)
       topdictidx = stbtt__cff_get_index(b);
       topdict = stbtt__cff_index_get(topdictidx, 0);
       stbtt__cff_get_index(b);  -- string INDEX
-      info.gsubrs = stbtt__cff_get_index(b);
+      self.gsubrs = stbtt__cff_get_index(b);
   --[[
       stbtt__dict_get_ints(topdict, 17, 1, &charstrings);
       stbtt__dict_get_ints(topdict, 0x100 | 6, 1, &cstype);
@@ -1879,20 +1879,20 @@ local function stbtt_InitFont_internal(self)
     while (i < self.numTables) do
         local encoding_record = cmap.offset + 4 + 8 * i;
         -- find an encoding we understand:
-        local enc = ttUSHORT(data+encoding_record);
+        local enc = ttUSHORT(self.data+encoding_record);
 --print("enc: ", enc)
         if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
-            local msfteid = ttUSHORT(data+encoding_record+2)
+            local msfteid = ttUSHORT(self.data+encoding_record+2)
             if msfteid == TT_MS_ID_UNICODE_CS or
                 msfteid == TT_MS_ID_UNICODE_FULL then
                     -- MS/Unicode
-                self.index_map = cmap.offset + ttULONG(data+encoding_record+4);
+                self.index_map = cmap.offset + ttULONG(self.data+encoding_record+4);
             end
 
         elseif enc == ffi.C.STBTT_PLATFORM_ID_UNICODE then
                 -- Mac/iOS has these
                 -- all the encodingIDs are unicode, so we don't bother to check it
-                info.index_map = cmap.offset + ttULONG(data+encoding_record+4);
+                self.index_map = cmap.offset + ttULONG(self.data+encoding_record+4);
         end
 
         i = i + 1;
@@ -1902,7 +1902,7 @@ local function stbtt_InitFont_internal(self)
         return false;
     end
 
-    self.indexToLocFormat = ttUSHORT(data+self.tables['head'].offset + 50);
+    self.indexToLocFormat = tonumber(ttUSHORT(self.data+self.tables['head'].offset + 50));
 
     return true;
 end
@@ -1922,7 +1922,7 @@ function stbtt_fontinfo.new(self, params)
     end
 
     -- check to make sure the font has the required headers
-    if not hasRequiredHeaders(obj) then return nil end
+    --if not hasRequiredHeaders(obj) then return nil end
 
     --obj.loca = obj.loca or 0;
     --obj.head = obj.head or 0;
@@ -2001,7 +2001,7 @@ function stbtt_fontinfo.readTableDirectory(self)
             offset = tonumber(ttULONG(self.data+loc+8)),
             length = tonumber(ttULONG(self.data+loc+12))
         }
-        res.data = self.data + res.offset;
+        res[name].data = self.data + res[name].offset;
 
         i = i + 1;
     end
@@ -2043,19 +2043,19 @@ function stbtt_fontinfo.readTable_head(self)
     self.version = ttULONG(self.data+0);
     self.fontRevision = ttULONG(self.data+4);
     self.checksumAdjustment = tonumber(ttULONG(self.data+8));
-    self.magicNumber = ttULONG(self.data+12);
+    self.magicNumber = tonumber(ttULONG(self.data+12));
     self.flags = ttUSHORT(self.data+16);
-    self.unitsPerEm = ttUSHORT(self.data+18);
-    self.created = ttULONGLONG(self.data+20);
-    self.modified = ttULONGLONG(self.data+28);
+    self.unitsPerEm = tonumber(ttUSHORT(self.data+18));
+    --self.created = ttULONGLONG(self.data+20);
+    --self.modified = ttULONGLONG(self.data+28);
     self.xMin = ttSHORT(self.data+36);
     self.yMin = ttSHORT(self.data+38);
     self.xMax = ttSHORT(self.data+40);
     self.yMax = ttSHORT(self.data+42);
     self.macStyle = ttUSHORT(self.data+44);
     self.lowestRecPPEM = ttUSHORT(self.data+46);
-    self.fontDirectionHint = ttSHORT(self.data+48);
-    self.indexToLocFormat = ttSHORT(self.data+50);
+    self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
+    self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
     self.glyhpDataFormat = ttSHORT(self.data+52);
 
     return self;

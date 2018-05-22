@@ -6,7 +6,7 @@ local mmap = require("mmap_win32")
 
 local function print_table_head(info)
     print("==== print_table_head ====")
-    print("magicNumber: ", info.tables['head'].magicNumber)
+    print(string.format("magicNumber: 0x%8X", info.tables['head'].magicNumber))
     print("unitsPerEm: ", info.tables['head'].unitsPerEm)
     print("fontDirectionHint: ", info.tables['head'].fontDirectionHint)
     print("indexToLocFormat: ", info.tables['head'].indexToLocFormat)
