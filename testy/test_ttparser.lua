@@ -4,6 +4,15 @@ local ffi = require("ffi")
 local tt = require("truetype_parser")
 local mmap = require("mmap_win32")
 
+local function print_table_head(info)
+    print("==== print_table_head ====")
+    print("magicNumber: ", info.tables['head'].magicNumber)
+    print("unitsPerEm: ", info.tables['head'].unitsPerEm)
+    print("fontDirectionHint: ", info.tables['head'].fontDirectionHint)
+    print("indexToLocFormat: ", info.tables['head'].indexToLocFormat)
+    print("glyphDataFormat: ", info.tables['head'].glyphDataFormat)
+end
+
 local function printTables(info)
     print("==== TABLES ====")
     print("Tag    Order   Offset   Length")
@@ -12,12 +21,14 @@ local function printTables(info)
             print(k, v.index, v.offset, v.length)
         end
     end
+
+    print_table_head(info)
 end
 
 local function printFontInfo(info)
     print("==== FONT INFO ====")
-    print("  Num Tables: ", info.numTables)
-
+    print("       Num Tables: ", info.numTables)
+    print(" indexToLocFormat: ", info.indexToLocFormat)
     printTables(info)
 end
 
