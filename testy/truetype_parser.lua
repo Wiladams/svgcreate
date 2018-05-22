@@ -13,6 +13,7 @@ per glyph, so all the rendering has been removed.
 
 Reference
 https://developer.apple.com/fonts/TrueType-Reference-Manual/
+https://docs.microsoft.com/en-us/typography/opentype/spec/font-file
 --]]
 
 
@@ -1779,12 +1780,31 @@ local stbtt_fontinfo_mt = {
     __index = stbtt_fointinfo;
 }
 
+--[[
+    Required headers
+    cmap
+    head
+    hhea
+    hmtx
+    maxp
+    name
+    OS/2
+    post
+
+    TrueType outlines
+    cvt
+    fpgm
+    glyf
+    loca
+    prep
+    gasp
+]]
 local function hasRequiredHeaders(self)
     -- first check all required headers are in place
-    if not self.tables["cmap"] and 
+    if not (self.tables["cmap"] and 
         self.tables["head"] and 
         self.tables["hhea"] and
-        self.tables["hmtx"] then
+        self.tables["hmtx"]) then
             return false;
         end
 
@@ -1919,6 +1939,11 @@ function stbtt_fontinfo.new(self, params)
     -- offsets from start of file to a few tables
     if obj.data ~= nil then
         obj.tables = stbtt_fontinfo.readTableDirectory(obj);
+            -- Read in the required tables
+        stbtt_fontinfo.readTable_maxp(obj.tables['maxp'])
+        stbtt_fontinfo.readTable_head(obj)
+        --stbtt_fontinfo.readTable_cmap(res['cmap'])
+
     end
 
     -- check to make sure the font has the required headers
@@ -2006,11 +2031,6 @@ function stbtt_fontinfo.readTableDirectory(self)
         i = i + 1;
     end
 
-    -- Read in the required tables
-    stbtt_fontinfo.readTable_maxp(res['maxp'])
-    stbtt_fontinfo.readTable_head(res['head'])
-    --stbtt_fontinfo.readTable_cmap(res['cmap'])
-
     return res;
 end
 
@@ -2040,23 +2060,25 @@ end
 function stbtt_fontinfo.readTable_head(self)
     if not self then return false end
 
-    self.version = ttULONG(self.data+0);
-    self.fontRevision = ttULONG(self.data+4);
-    self.checksumAdjustment = tonumber(ttULONG(self.data+8));
-    self.magicNumber = tonumber(ttULONG(self.data+12));
-    self.flags = ttUSHORT(self.data+16);
-    self.unitsPerEm = tonumber(ttUSHORT(self.data+18));
-    --self.created = ttULONGLONG(self.data+20);
-    --self.modified = ttULONGLONG(self.data+28);
-    self.xMin = ttSHORT(self.data+36);
-    self.yMin = ttSHORT(self.data+38);
-    self.xMax = ttSHORT(self.data+40);
-    self.yMax = ttSHORT(self.data+42);
-    self.macStyle = ttUSHORT(self.data+44);
-    self.lowestRecPPEM = ttUSHORT(self.data+46);
-    self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
-    self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
-    self.glyhpDataFormat = ttSHORT(self.data+52);
+    local tbl = self.tables['head']
+
+    tbl.version = ttULONG(tbl.data+0);
+    tbl.fontRevision = ttULONG(tbl.data+4);
+    tbl.checksumAdjustment = tonumber(ttULONG(tbl.data+8));
+    tbl.magicNumber = tonumber(ttULONG(tbl.data+12));
+    tbl.flags = ttUSHORT(tbl.data+16);
+    tbl.unitsPerEm = tonumber(ttUSHORT(tbl.data+18));
+    --tbl.created = ttULONGLONG(tbl.data+20);
+    --tbl.modified = ttULONGLONG(tbl.data+28);
+    tbl.xMin = ttSHORT(tbl.data+36);
+    tbl.yMin = ttSHORT(tbl.data+38);
+    tbl.xMax = ttSHORT(tbl.data+40);
+    tbl.yMax = ttSHORT(tbl.data+42);
+    tbl.macStyle = tonumber(ttUSHORT(tbl.data+44));
+    tbl.lowestRecPPEM = ttUSHORT(tbl.data+46);
+    tbl.fontDirectionHint = tonumber(ttSHORT(tbl.data+48));
+    tbl.indexToLocFormat = tonumber(ttSHORT(tbl.data+50));
+    tbl.glyphDataFormat = tonumber(ttSHORT(tbl.data+52));
 
     return self;
 end
