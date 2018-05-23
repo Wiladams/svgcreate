@@ -1864,15 +1864,10 @@ local function stbtt_InitFont_internal(self)
       self.charstrings = stbtt__cff_get_index(b);
     end
 
-   local maxp = self.tables["maxp"];
+   --local maxp = self.tables["maxp"];
    local cmap = self.tables['cmap'];
 
-   if (maxp) then
-      --info.numGlyphs = ttUSHORT(obj.data+maxp.offset+4);
-      self.numGlyphs = maxp.numGlyphs;
-   else
-      self.numGlyphs = 0;
-   end
+
 
     self.index_map = 0;
     local i = 0;
@@ -1880,7 +1875,6 @@ local function stbtt_InitFont_internal(self)
         local encoding_record = cmap.offset + 4 + 8 * i;
         -- find an encoding we understand:
         local enc = ttUSHORT(self.data+encoding_record);
---print("enc: ", enc)
         if enc == ffi.C.STBTT_PLATFORM_ID_MICROSOFT then
             local msfteid = ttUSHORT(self.data+encoding_record+2)
             if msfteid == TT_MS_ID_UNICODE_CS or
@@ -1902,7 +1896,7 @@ local function stbtt_InitFont_internal(self)
         return false;
     end
 
-    self.indexToLocFormat = tonumber(ttUSHORT(self.data+self.tables['head'].offset + 50));
+    --self.indexToLocFormat = tonumber(ttUSHORT(self.data+self.tables['head'].offset + 50));
 
     return true;
 end
@@ -1915,7 +1909,9 @@ function stbtt_fontinfo.new(self, params)
     obj.userdata = obj.userdata or nil;
     obj.fontstart = obj.fontstart or 0;
     obj.numGlyphs = obj.numGlyphs or 0;
-    
+    obj.index_map = obj.index_map or 0;
+    obj.indexToLocFormat = obj.indexToLocFormat or 0;
+
     -- offsets from start of file to a few tables
     if obj.data ~= nil then
         obj.tables = stbtt_fontinfo.readTableDirectory(obj);
@@ -1923,17 +1919,23 @@ function stbtt_fontinfo.new(self, params)
 
     -- check to make sure the font has the required headers
     --if not hasRequiredHeaders(obj) then return nil end
+    
+    -- After reading table directory, set some values
+    local maxp = obj.tables["maxp"];
+    --local cmap = obj.tables['cmap'];
+    local head = obj.tables['head'];
 
-    --obj.loca = obj.loca or 0;
-    --obj.head = obj.head or 0;
-    --obj.glyf = obj.glyf or 0;
-    --obj.hhea = obj.hhea or 0;
-    --obj.hmtx = obj.hmtx or 0;
-    --obj.kern = obj.kern or 0;
-    --obj.gpos = obj.gpos or 0;
+    if head then
+        obj.indexToLocFormat = head.indexToLocFormat;
+    end
 
-    obj.index_map = obj.index_map or 0;
-    obj.indexToLocFormat = obj.indexToLocFormat or 0;
+    if (maxp) then
+        obj.numGlyphs = maxp.numGlyphs;
+     else
+        obj.numGlyphs = 0;
+     end
+
+
 
     stbtt_InitFont_internal(obj)
 
@@ -2010,6 +2012,7 @@ function stbtt_fontinfo.readTableDirectory(self)
     stbtt_fontinfo.readTable_maxp(res['maxp'])
     stbtt_fontinfo.readTable_head(res['head'])
     --stbtt_fontinfo.readTable_cmap(res['cmap'])
+    stbtt_fontinfo.readTable_name(res['name'])
 
     return res;
 end
@@ -2052,13 +2055,45 @@ function stbtt_fontinfo.readTable_head(self)
     self.yMin = ttSHORT(self.data+38);
     self.xMax = ttSHORT(self.data+40);
     self.yMax = ttSHORT(self.data+42);
-    self.macStyle = ttUSHORT(self.data+44);
+    self.macStyle = tonumber(ttUSHORT(self.data+44));
     self.lowestRecPPEM = ttUSHORT(self.data+46);
     self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
     self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
-    self.glyhpDataFormat = ttSHORT(self.data+52);
+    self.glyhpDataFormat = tonumber(ttSHORT(self.data+52));
 
     return self;
+end
+
+function stbtt_fontinfo.readTable_name(tbl)
+
+    tbl.format = tonumber(ttUSHORT(tbl.data+0));
+    tbl.count = tonumber(ttUSHORT(tbl.data+2));
+    tbl.stringOffset = tonumber(ttUSHORT(tbl.data+4));
+    tbl.names = {}
+
+    print("==== readTable_name: ", tbl, tbl.name, tbl.count)
+    
+    -- for the number of name record entries...
+    local i=0
+    while (i < tbl.count ) do
+        local base = tbl.data+6 + 12*(i);
+        local rec = {
+            platformID = tonumber(ttUSHORT(base + 0)),
+            platformSpecificID = tonumber(ttUSHORT(base+2)),
+            languageID = tonumber(ttUSHORT(base+4)),
+            nameID = tonumber(ttUSHORT(base+6)),
+            length = tonumber(ttUSHORT(base+8)),
+            offset = tonumber(ttUSHORT(base+10))
+            
+        }
+        rec.value = ffi.string(tbl.data+tbl.stringOffset+rec.offset, rec.length)
+
+        table.insert(tbl.names, rec)
+        
+        i = i + 1;
+    end
+
+    return tbl
 end
 
 local exports = {

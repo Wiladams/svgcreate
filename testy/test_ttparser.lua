@@ -13,6 +13,27 @@ local function print_table_head(info)
     print("glyphDataFormat: ", info.tables['head'].glyphDataFormat)
 end
 
+local function print_table_name(info)
+    local name = info.tables['name']
+    print("==== print_table_name ====")
+    print("format: ", name.format)
+    print("count: ", name.count)
+    print("stringoffset: ", name.stringOffset)
+    for i, rec in ipairs(name.names) do
+        if rec.platformID == 1 and rec.platformSpecificID == 0 then
+        print(string.format("%4d    %4d    %4d    %4d    %4d    %4d    %s",
+            rec.platformID, rec.platformSpecificID,
+            rec.languageID, rec.nameID,
+            rec.length, rec.offset, rec.value))
+        else
+            print(string.format("%4d    %4d    %4d    %4d    %4d    %4d",
+            rec.platformID, rec.platformSpecificID,
+            rec.languageID, rec.nameID,
+            rec.length, rec.offset))
+        end
+    end
+end
+
 local function printTables(info)
     print("==== TABLES ====")
     print("Tag    Order   Offset   Length")
@@ -23,6 +44,7 @@ local function printTables(info)
     end
 
     print_table_head(info)
+    print_table_name(info)
 end
 
 local function printFontInfo(info)
