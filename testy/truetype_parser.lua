@@ -2033,15 +2033,12 @@ function stbtt_fontinfo.readTableDirectory(self)
         i = i + 1;
     end
 
-<<<<<<< HEAD
     -- Read in the required tables
     stbtt_fontinfo.readTable_maxp(res['maxp'])
     stbtt_fontinfo.readTable_head(res['head'])
     --stbtt_fontinfo.readTable_cmap(res['cmap'])
     stbtt_fontinfo.readTable_name(res['name'])
 
-=======
->>>>>>> 30b0037c4e7fa2980149ba0fb0a0be86689a1ba4
     return res;
 end
 
@@ -2071,7 +2068,6 @@ end
 function stbtt_fontinfo.readTable_head(self)
     if not self then return false end
 
-<<<<<<< HEAD
     self.version = ttULONG(self.data+0);
     self.fontRevision = ttULONG(self.data+4);
     self.checksumAdjustment = tonumber(ttULONG(self.data+8));
@@ -2089,27 +2085,6 @@ function stbtt_fontinfo.readTable_head(self)
     self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
     self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
     self.glyhpDataFormat = tonumber(ttSHORT(self.data+52));
-=======
-    local tbl = self.tables['head']
-
-    tbl.version = ttULONG(tbl.data+0);
-    tbl.fontRevision = ttULONG(tbl.data+4);
-    tbl.checksumAdjustment = tonumber(ttULONG(tbl.data+8));
-    tbl.magicNumber = tonumber(ttULONG(tbl.data+12));
-    tbl.flags = ttUSHORT(tbl.data+16);
-    tbl.unitsPerEm = tonumber(ttUSHORT(tbl.data+18));
-    --tbl.created = ttULONGLONG(tbl.data+20);
-    --tbl.modified = ttULONGLONG(tbl.data+28);
-    tbl.xMin = ttSHORT(tbl.data+36);
-    tbl.yMin = ttSHORT(tbl.data+38);
-    tbl.xMax = ttSHORT(tbl.data+40);
-    tbl.yMax = ttSHORT(tbl.data+42);
-    tbl.macStyle = tonumber(ttUSHORT(tbl.data+44));
-    tbl.lowestRecPPEM = ttUSHORT(tbl.data+46);
-    tbl.fontDirectionHint = tonumber(ttSHORT(tbl.data+48));
-    tbl.indexToLocFormat = tonumber(ttSHORT(tbl.data+50));
-    tbl.glyphDataFormat = tonumber(ttSHORT(tbl.data+52));
->>>>>>> 30b0037c4e7fa2980149ba0fb0a0be86689a1ba4
 
     return self;
 end

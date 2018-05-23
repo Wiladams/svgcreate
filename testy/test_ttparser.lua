@@ -1,3 +1,6 @@
+--[[
+    Testing the truetype file parser
+]]
 package.path = "../?.lua;"..package.path;
 
 local ffi = require("ffi")
