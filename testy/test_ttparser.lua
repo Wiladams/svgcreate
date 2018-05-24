@@ -24,7 +24,7 @@ local function print_table_name(info)
     print("count: ", name.count)
     print("stringoffset: ", name.stringOffset)
     for i, rec in ipairs(name.names) do
-        if rec.platformID == 1 and rec.platformSpecificID == 0 then
+        if ((rec.platformID == 1) or (rec.platformID == 3)) and rec.platformSpecificID == 0 then
         print(string.format("%4d    %4d    %4d    %4d    %4d    %4d    %s",
             rec.platformID, rec.platformSpecificID,
             rec.languageID, rec.nameID,
