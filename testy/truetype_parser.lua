@@ -1916,8 +1916,6 @@ local function stbtt_InitFont_internal(self)
         return false;
     end
 
-    --self.indexToLocFormat = tonumber(ttUSHORT(self.data+self.tables['head'].offset + 50));
-
     return true;
 end
 
@@ -1935,23 +1933,27 @@ function stbtt_fontinfo.new(self, params)
     -- offsets from start of file to a few tables
     if obj.data ~= nil then
         obj.tables = stbtt_fontinfo.readTableDirectory(obj);
-            -- Read in the required tables
-        stbtt_fontinfo.readTable_maxp(obj.tables['maxp'])
-        stbtt_fontinfo.readTable_head(obj)
-        --stbtt_fontinfo.readTable_cmap(res['cmap'])
+ 
+        -- check to make sure the font has the required headers
+        --if not hasRequiredHeaders(obj) then return nil end
 
+        -- parse the non-dependent tables here
+        stbtt_fontinfo.readTable_maxp(obj.tables['maxp'])
+        stbtt_fontinfo.readTable_head(obj.tables['head'])
+        stbtt_fontinfo.readTable_hhea(obj, obj.tables['hhea'])
+        stbtt_fontinfo.readTable_name(obj.tables['name'])
     end
 
-    -- check to make sure the font has the required headers
-    --if not hasRequiredHeaders(obj) then return nil end
     
     -- After reading table directory, set some values
     local maxp = obj.tables["maxp"];
-    --local cmap = obj.tables['cmap'];
     local head = obj.tables['head'];
+    local hhea = obj.tables['hhea'];
 
-    if head then
-        obj.indexToLocFormat = head.indexToLocFormat;
+    if hhea then
+        obj.ascent = hhea.ascent
+        obj.descent = hhea.descent
+        obj.lineGap = hhea.lineGap
     end
 
     if (maxp) then
@@ -1959,7 +1961,18 @@ function stbtt_fontinfo.new(self, params)
      else
         obj.numGlyphs = 0;
      end
+     
+    if head then
+        obj.indexToLocFormat = head.indexToLocFormat;
+    end
 
+
+    -- parse required tables
+    -- this MUST happen after we've lifted some values up 
+    -- into the obj as they are dependent
+    --stbtt_fontinfo.readTable_cmap(obj.tables['cmap'])
+    stbtt_fontinfo.readTable_loca(obj, obj.tables['loca'])     -- depends on 'head'
+    stbtt_fontinfo.readTable_glyf(obj, obj.tables['glyf'])     -- depends on 'loca'
 
 
     stbtt_InitFont_internal(obj)
@@ -2033,11 +2046,6 @@ function stbtt_fontinfo.readTableDirectory(self)
         i = i + 1;
     end
 
-    -- Read in the required tables
-    stbtt_fontinfo.readTable_maxp(res['maxp'])
-    stbtt_fontinfo.readTable_head(res['head'])
-    --stbtt_fontinfo.readTable_cmap(res['cmap'])
-    stbtt_fontinfo.readTable_name(res['name'])
 
     return res;
 end
@@ -2084,11 +2092,134 @@ function stbtt_fontinfo.readTable_head(self)
     self.lowestRecPPEM = ttUSHORT(self.data+46);
     self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
     self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
-    self.glyhpDataFormat = tonumber(ttSHORT(self.data+52));
+    self.glyphDataFormat = tonumber(ttSHORT(self.data+52));
 
     return self;
 end
 
+function stbtt_fontinfo.readTable_hhea(self, tbl)
+    tbl.version = ttULONG(tbl.data+0);
+    tbl.ascent = tonumber(ttSHORT(tbl.data+4));
+    tbl.descent = tonumber(ttSHORT(tbl.data+6));
+    tbl.lineGap = ttSHORT(tbl.data+8);
+    tbl.advanceWidthMax = ttSHORT(tbl.data+10);
+    tbl.minLeftSideBearing = ttSHORT(tbl.data+12);
+    tbl.minRightSideBearing = ttSHORT(tbl.data+14);
+    tbl.xMaxExtent = ttSHORT(tbl.data+16);
+    tbl.caretSlopeRise = tonumber(ttSHORT(tbl.data+18));
+    tbl.caretSlopeRun = tonumber(ttSHORT(tbl.data+20));
+    tbl.caretOffset = tonumber(ttSHORT(tbl.data+22));
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    tbl.metricDataFormat = ttSHORT(tbl.data+32);
+    tbl.numOfLongHorMetrics = tonumber(ttSHORT(tbl.data+34));
+
+end
+
+function stbtt_fontinfo.readTable_loca(self, tbl)
+    local numGlyphs = self.numGlyphs
+    local locformat = self.indexToLocFormat
+
+    tbl.offsets = {}
+
+    for i = 0, numGlyphs do
+        if locformat == 0 then
+            tbl.offsets[i] = tonumber(ttSHORT(tbl.data + 2*i))
+        elseif locformat == 1 then
+            tbl.offsets[i] = tonumber(ttULONG(tbl.data + 4*i))
+        end
+    end
+
+    return tbl
+end
+
+--[[
+    the glyf table contains the contours associated with each glyf
+    This is by far the most important and challenging table to read.
+    First, the table depends on the 'loca' table to know where the
+    offset is for a given glyph, so that must have already been read in.
+
+    Each glyph has contours, or composit information, and/or
+    hinting instructions.
+
+    Step by step, but by bit
+]]
+function stbtt_fontinfo.readTable_glyf(self, tbl)
+    local numGlyphs = self.numGlyphs
+
+
+    local offsets = self.tables['loca'].offsets
+    local tbldata = tbl.data;
+
+    --print("readTable_glyf.NUMGLYPHS: ", numGlyphs, tbldata, offsets)
+
+    tbl.glyphs = {}
+    local glyphs = tbl.glyphs
+    local glyphHdrSize = 10; -- size of the non-variable part of the glyph header
+
+    for i=0,numGlyphs-1 do
+        --local offset = offsets[i];
+        --print("OFFSET: ", offsets[i])
+        local offsetCnt = 0;
+        local glyphBase = tbldata + offsets[i];
+
+        local glyph = {
+            numberOfContours = tonumber(ttSHORT(glyphBase + 0));
+            xMin = tonumber(ttSHORT(glyphBase+2));
+            yMin = tonumber(ttSHORT(glyphBase+4));
+            xMax = tonumber(ttSHORT(glyphBase+6));
+            yMax = tonumber(ttSHORT(glyphBase+8));
+            };
+        offsetCnt = offsetCnt + glyphHdrSize;
+
+        -- Based on the number of contours, we can figure out if 
+        -- this is a simple glyph, or a compound glyph (combo of glyphs)
+        -- contours < 0    glyph comprised of components
+        -- contours == 0    has no glyph data, could be components (-1 recommended)
+        -- contours > 1
+        local contourCount = glyph.numberOfContours
+        if contourCount > 0 then
+            -- Knowing it's a simple glyph, load in the contour data
+            glyph.simple = true;
+            glyph.countours = {}
+
+            -- grab the endpoints for each contour
+            local endPtsOfContours = {}
+            for cnt=0, contourCount-1 do
+                table.insert(endPtsOfContours, tonumber(ttUSHORT(glyphBase+offsetCnt)))
+                offsetCnt = offsetCnt + 2;
+            end
+print("ENDPOINTS: ", #endPtsOfContours)
+            local instructionLength = tonumber(ttUSHORT(glyphBase+offsetCnt))
+            offsetCnt = offsetCnt + 2;
+            -- We now know how many bytes of instruction there are, so load that 
+            local instructions = ffi.string(glyphBase+offsetCnt, instructionLength)
+            offsetCnt = offsetCnt + instructionLength;
+        elseif contourCount < 0 then
+            -- composite glyph
+        end
+
+
+
+
+        table.insert(glyphs, glyph)    
+    end
+
+    --print("readTabke_glyf: FINISHED")
+    return tbl
+end
+
+
+--[[
+    Reading the name table
+
+    Name values can be in various encodings (not necessarily ASCII), but
+    that's ok because Lua is byte agnostic with respect to 'string' values.
+    As long as we know the length of the 'string' (which we do), there's 
+    no problem encapsulating it in a lua string.
+]]
 function stbtt_fontinfo.readTable_name(tbl)
 
     tbl.format = tonumber(ttUSHORT(tbl.data+0));
@@ -2096,7 +2227,7 @@ function stbtt_fontinfo.readTable_name(tbl)
     tbl.stringOffset = tonumber(ttUSHORT(tbl.data+4));
     tbl.names = {}
 
-    print("==== readTable_name: ", tbl, tbl.name, tbl.count)
+    --print("==== readTable_name: ", tbl, tbl.name, tbl.count)
     
     -- for the number of name record entries...
     local i=0

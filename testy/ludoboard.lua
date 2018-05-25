@@ -10,7 +10,7 @@ local doc = svg {
     height="8in", 
     viewBox="0 0 8 8",
 
-
+    -- outer gameboard rectangle
     rect {
         fill="none",
         stroke = "#000000",
@@ -21,38 +21,43 @@ local doc = svg {
     },
 
     defs {
-        -- upper left
+        -- upper left quadrant
         g {
-        id = "quadrant",
-        stroke = "#000000",
-        stroke_width = 0.01,
-        fill = "none",
+            id = "quadrant",
+            stroke = "#000000",
+            stroke_width = 0.01,
+            fill = "none",
   
-        rect {
-            x = 0.25, y = 0.25,
-            width = 3,
-            height = 3
-        };
+            rect {
+                x = 0.0, y = 0.0,
+                width = 3,
+                height = 3
+            };
 
-        -- vertical lines
-        line { x1 = 3.75, y1 =0.25, x2 = 3.75, y2 = 3.25};
-        line { x1 = 4.25, y1 =0.25, x2 = 4.25, y2 = 3.25};
+            -- vertical lines
+            line { x1 = 3.50, y1 =0.0, x2 = 3.50, y2 = 3.0};
+            line { x1 = 4.00, y1 =0.0, x2 = 4.00, y2 = 3.0};
 
             -- horizontal lines
-            line { x1 = 3.25, y1 = 0.25, x2 = 4.75, y2 = 0.25};
-            line { x1 = 3.25, y1 = 0.75, x2 = 4.75, y2 = 0.75};
-            line { x1 = 3.25, y1 = 1.25, x2 = 4.75, y2 = 1.25};
-            line { x1 = 3.25, y1 = 1.75, x2 = 4.75, y2 = 1.75};
-            line { x1 = 3.25, y1 = 2.25, x2 = 4.75, y2 = 2.25};
-            line { x1 = 3.25, y1 = 2.75, x2 = 4.75, y2 = 2.75};
-            line { x1 = 3.25, y1 = 3.25, x2 = 4.75, y2 = 3.25};
+            line { x1 = 3.00, y1 = 0.00, x2 = 4.50, y2 = 0.00};
+            line { x1 = 3.00, y1 = 0.50, x2 = 4.50, y2 = 0.50};
+            line { x1 = 3.00, y1 = 1.00, x2 = 4.50, y2 = 1.00};
+            line { x1 = 3.00, y1 = 1.50, x2 = 4.50, y2 = 1.50};
+            line { x1 = 3.00, y1 = 2.00, x2 = 4.50, y2 = 2.00};
+            line { x1 = 3.00, y1 = 2.50, x2 = 4.50, y2 = 2.50};
+            line { x1 = 3.00, y1 = 3.00, x2 = 4.50, y2 = 3.00};
         }
     };
 
-    use { ['xlink:href']="#quadrant", x = 0, y = 0};
-    use { ['xlink:href']="#quadrant", transform = "rotate(90, 0.25, 3.25)  translate(-3.0, -4.5)", x = 0, y = 0};
-    use { ['xlink:href']="#quadrant", transform = "rotate(180, 0.25, 3.25)  translate(-7.5, -1.5)", x = 0, y = 0};
-    use { ['xlink:href']="#quadrant", transform = "rotate(-90, 0.25, 3.25)  translate(-4.5, 3.0)", x = 0, y = 0};
+    -- replicate the quadrant, applying rotation and translation to get each into position
+    use { ['xlink:href']="#quadrant", transform = "translate(0.25, 0.25)", x = 0, y = 0};
+    use { ['xlink:href']="#quadrant", transform = "rotate(90, 0.25, 3.25)  translate(-2.75, -4.25)", x = 0, y = 0};
+    use { ['xlink:href']="#quadrant", transform = "rotate(180, 0.25, 3.25)  translate(-7.25, -1.25)", x = 0, y = 0};
+    use { ['xlink:href']="#quadrant", transform = "rotate(-90, 0.25, 3.25)  translate(-4.25, 3.25)", x = 0, y = 0};
+
+    -- draw a couple of lines crossing in the middle
+    line {x1 = 3.25, y1 = 3.25, x2 = 4.75, y2 = 4.75, stroke = "#000000", stroke_width = 0.01};
+    line {x1 = 3.25, y1 = 4.75, x2 = 4.75, y2 = 3.25, stroke = "#000000", stroke_width = 0.01};
 }
 
 local FileStream = require("svgcreate.filestream")
