@@ -13,7 +13,7 @@ local doc = svg {
     -- outer gameboard rectangle
     rect {
         fill="none",
-        stroke = "#000000",
+        stroke = "#00ff00",
         stroke_width = "0.1",
         x = 0, y = 0,
         width = 8,
@@ -26,13 +26,26 @@ local doc = svg {
             id = "quadrant",
             stroke = "#000000",
             stroke_width = 0.01,
-            fill = "none",
+            fill = "transparent",
   
             rect {
                 x = 0.0, y = 0.0,
                 width = 3,
                 height = 3
             };
+
+            -- outer diamond
+            path {d="M0.0,1.5 L1.5,0 L3.0,1.5 L1.5,3.0 L0,1.5", fill='transparent'};
+
+            -- inner diamond
+            path {d="M0.5,1.5 L1.5,0.5 L2.5,1.5 L1.5,2.5, L0.5,1.5", fill='transparent'};
+
+
+            -- squares inside diamonds
+            rect {x = 1.25, y = 0.75, width = 0.5, height = 0.5};
+            rect {x = 1.25, y = 1.75, width = 0.5, height = 0.5};
+            rect {x = 0.75, y = 1.25, width = 0.5, height = 0.5};
+            rect {x = 1.75, y = 1.25, width = 0.5, height = 0.5};
 
             -- vertical lines
             line { x1 = 3.50, y1 =0.0, x2 = 3.50, y2 = 3.0};

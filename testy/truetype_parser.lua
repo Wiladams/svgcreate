@@ -1,7 +1,5 @@
 --[[
-// stb_truetype.h - v1.19 - public domain
-// authored from 2009-2016 by Sean Barrett / RAD Game Tools
-//
+
 Origin: 
     https://github.com/nothings/stb
     https://raw.githubusercontent.com/nothings/stb/master/stb_truetype.h
@@ -11,9 +9,21 @@ them into bitmaps.  In this application, we're only interested in the
 parsing of the files, so that we can generate SVG path information 
 per glyph, so all the rendering has been removed.   
 
-Reference
+Although this file started from the stb public domain code, it has pretty
+much been completely replaced with original Lua code, referring back 
+to the specs, and other implementations.
+
+The original stb file has provided a stable scaffolding to support the
+transformation along the way.
+
+More Reference material for the curious
+Apple Reference docs
 https://developer.apple.com/fonts/TrueType-Reference-Manual/
+Microsoft Reference docs
 https://docs.microsoft.com/en-us/typography/opentype/spec/font-file
+
+Let's Read a TrueType Font
+http://stevehanov.ca/blog/index.php?id=143
 --]]
 
 
@@ -21,6 +31,8 @@ https://docs.microsoft.com/en-us/typography/opentype/spec/font-file
 local ffi = require("ffi")
 local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
+local ttstream = require("ttstream")
+
 
 local acos = math.acos;
 local sqrt = math.sqrt;
@@ -151,15 +163,7 @@ local function STBTT_memset(a,b)
 end
 
 
-ffi.cdef[[
-// private structure
-typedef struct
-{
-   uint8_t *data;
-   size_t cursor;
-   size_t size;
-} stbtt__buf;
-]]
+
 
 --[[
 //////////////////////////////////////////////////////////////////////////////
@@ -226,90 +230,17 @@ assert(STBTT_MAX_OVERSAMPLE <= 255,  "STBTT_MAX_OVERSAMPLE cannot be > 255")
 // stbtt__buf helpers to parse data from file
 //
 --]]
--- get 8 bits, and advance the cursor
-local function stbtt__buf_get8(b)
-
-   if (b.cursor >= b.size) then
-      return 0;
-   end
-   --b.data[b.cursor++];
-   local r = b.data[b.cursor];
-   b.cursor = b.cursor + 1;
-   return r
-end
-
--- get 8 bits, and don't advance the cursor
-local function stbtt__buf_peek8(b)
-    if (b.cursor >= b.size) then
-        return 0;
-    end
-
-    return b.data[b.cursor];
-end
-
--- move to a particular position, in bytes
-local function stbtt__buf_seek(b, o)
-   STBTT_assert(not (o > b.size or o < 0));
-   --b.cursor = (o > b.size or o < 0) ? b.size : o;
-    if (o > b.size or o < 0) then 
-        b.cursor = b.size
-    else
-        b.cursor = o;
-    end
-
-    return true;
-end
-
-local function stbtt__buf_skip(b, o)
-    return stbtt__buf_seek(b, b.cursor + o);
-end
-
-local function stbtt__buf_get(b, n)
-    STBTT_assert(n >= 1 and n <= 4);
-    local v = 0;
-    local i = 0;
-    while  (i < n) do
-        v = bor(lshift(v, 8), stbtt__buf_get8(b));
-        i = i + 1;
-    end
-
-    return v;
-end
-
-local function stbtt__new_buf(p, size)
-
-   local r = ffi.new(ffi.typeof('stbtt__buf'));
-   STBTT_assert(size < 0x40000000);
-   r.data = p;
-   r.size = size;
-   r.cursor = 0;
-
-   return r;
-end
+ffi.cdef[[
+// private structure
+typedef struct
+{
+   uint8_t *data;
+   size_t cursor;
+   size_t size;
+} stbtt__buf;
+]]
 
 
-local function stbtt__buf_get16(b)  
-    return stbtt__buf_get(b, 2)
-end
-
-local function stbtt__buf_get32(b)  
-    return stbtt__buf_get(b, 4)
-end
-
-
-local function stbtt__buf_range(b, o, s)
-
-    local r = stbtt__new_buf(nil, 0);
-    if ((o < 0) or (s < 0) or (o > b.size) or (s > (b.size - o))) then 
-        return r;
-    end
-
-
-    r.data = b.data + o;
-    r.size = s;
-    
-    return r;
-end
 
 
 local function stbtt__cff_get_index(b)
@@ -2076,23 +2007,24 @@ end
 function stbtt_fontinfo.readTable_head(self)
     if not self then return false end
 
-    self.version = ttULONG(self.data+0);
-    self.fontRevision = ttULONG(self.data+4);
-    self.checksumAdjustment = tonumber(ttULONG(self.data+8));
-    self.magicNumber = tonumber(ttULONG(self.data+12));
-    self.flags = ttUSHORT(self.data+16);
-    self.unitsPerEm = tonumber(ttUSHORT(self.data+18));
-    --self.created = ttULONGLONG(self.data+20);
-    --self.modified = ttULONGLONG(self.data+28);
-    self.xMin = ttSHORT(self.data+36);
-    self.yMin = ttSHORT(self.data+38);
-    self.xMax = ttSHORT(self.data+40);
-    self.yMax = ttSHORT(self.data+42);
-    self.macStyle = tonumber(ttUSHORT(self.data+44));
-    self.lowestRecPPEM = ttUSHORT(self.data+46);
-    self.fontDirectionHint = tonumber(ttSHORT(self.data+48));
-    self.indexToLocFormat = tonumber(ttSHORT(self.data+50));
-    self.glyphDataFormat = tonumber(ttSHORT(self.data+52));
+    local ms = ttstream(self.data, self.length);
+
+    self.version = ms:getUInt32();
+    self.fontRevision = ms:getUInt32();
+    self.checksumAdjustment = ms:getUInt32();
+    self.magicNumber = ms:getUInt32();
+    self.flags = ms:getUInt16();
+    self.unitsPerEm = ms:getUInt16();
+    ms:skip(16);
+    self.xMin = ms:getInt16();
+    self.yMin = ms:getInt16();
+    self.xMax = ms:getInt16();
+    self.yMax = ms:getInt16();
+    self.macStyle = ms:getUInt16();
+    self.lowestRecPPEM = ms:getUInt16();
+    self.fontDirectionHint = ms:getUInt16();
+    self.indexToLocFormat = ms:getInt16();
+    self.glyphDataFormat = ms:getInt16();
 
     return self;
 end
@@ -2184,14 +2116,16 @@ function stbtt_fontinfo.readTable_glyf(self, tbl)
             -- Knowing it's a simple glyph, load in the contour data
             glyph.simple = true;
             glyph.countours = {}
+            glyph.points = {}
+            glyph.contourEnds = {}
 
             -- grab the endpoints for each contour
-            local endPtsOfContours = {}
+            --local endPtsOfContours = {}
             for cnt=0, contourCount-1 do
-                table.insert(endPtsOfContours, tonumber(ttUSHORT(glyphBase+offsetCnt)))
+                table.insert(glyph.contourEnds, tonumber(ttUSHORT(glyphBase+offsetCnt)))
                 offsetCnt = offsetCnt + 2;
             end
-print("ENDPOINTS: ", #endPtsOfContours)
+--print("ENDPOINTS: ", #endPtsOfContours)
             local instructionLength = tonumber(ttUSHORT(glyphBase+offsetCnt))
             offsetCnt = offsetCnt + 2;
             -- We now know how many bytes of instruction there are, so load that 
@@ -2221,10 +2155,10 @@ end
     no problem encapsulating it in a lua string.
 ]]
 function stbtt_fontinfo.readTable_name(tbl)
-
-    tbl.format = tonumber(ttUSHORT(tbl.data+0));
-    tbl.count = tonumber(ttUSHORT(tbl.data+2));
-    tbl.stringOffset = tonumber(ttUSHORT(tbl.data+4));
+    local ms = ttstream(tbl.data, tbl.length);
+    tbl.format = ms:getUInt16();
+    tbl.count = ms:getUInt16();
+    tbl.stringOffset = ms:getUInt16();
     tbl.names = {}
 
     --print("==== readTable_name: ", tbl, tbl.name, tbl.count)
@@ -2232,16 +2166,16 @@ function stbtt_fontinfo.readTable_name(tbl)
     -- for the number of name record entries...
     local i=0
     while (i < tbl.count ) do
-        local base = tbl.data+6 + 12*(i);
+        --local base = tbl.data+6 + 12*(i);
         local rec = {
-            platformID = tonumber(ttUSHORT(base + 0)),
-            platformSpecificID = tonumber(ttUSHORT(base+2)),
-            languageID = tonumber(ttUSHORT(base+4)),
-            nameID = tonumber(ttUSHORT(base+6)),
-            length = tonumber(ttUSHORT(base+8)),
-            offset = tonumber(ttUSHORT(base+10))
-            
+            platformID = ms:getUInt16();
+            platformSpecificID = ms:getUInt16();
+            languageID = ms:getUInt16();
+            nameID = ms:getUInt16();
+            length = ms:getUInt16();
+            offset = ms:getUInt16();
         }
+        
         rec.value = ffi.string(tbl.data+tbl.stringOffset+rec.offset, rec.length)
 
         table.insert(tbl.names, rec)

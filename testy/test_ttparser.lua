@@ -72,9 +72,9 @@ local function printTables(info)
     end
 
     print_table_head(info)
-    --print_table_name(info)
+    print_table_name(info)
     --print_table_loca(info)
-    print_table_glyf(info)
+    --print_table_glyf(info)
 end
 
 local function printFontInfo(info)
