@@ -90,6 +90,7 @@ end
 
 -- get 8 bits, and advance the cursor
 function tt_memstream.get8(self)
+    --print("self.cursor: ", self.cursor, self.size)
     if (self.cursor >= self.size) then
        return false;
     end
@@ -115,6 +116,14 @@ function tt_memstream.get(self, n)
     return v;
 end
 
+-- BUGBUG, do error checking against end of stream
+function tt_memstream.getString(self, n)
+    str = ffi.string(self.data+self.cursor, n)
+    self.cursor = self.cursor + n;
+
+    return str;
+end
+
 function tt_memstream.get16(self)  
      return self:get(2)
 end
@@ -124,6 +133,10 @@ function tt_memstream.get32(self)
 end
 
 -- These ensure the sign is dealth with properly
+function tt_memstream.getUInt8(self)
+    return tonumber(ffi.cast('uint8_t', self:get(1)))
+end
+
 function tt_memstream.getInt16(self)
     return tonumber(ffi.cast('int16_t', self:get(2)))
 end

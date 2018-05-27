@@ -4,6 +4,23 @@ package.path = "../?.lua;"..package.path;
 
 require("svgcreate.svgelements")()
 
+
+local function gridLines() 
+    local group = g{
+        stroke='pink';
+        -- vertical lines
+        line { x1 = 3.50, y1 =0.0, x2 = 3.50, y2 = 3.0};
+        line { x1 = 4.00, y1 =0.0, x2 = 4.00, y2 = 3.0};
+    }
+
+    for i=0, 6 do
+        group:append(line{x1 = 3.0, y1 =0.5*i, x2=4.5, y2=0.5*i})
+    end 
+                
+    return group; 
+end
+
+
 local doc = svg {
     ['xmlns:xlink']="http://www.w3.org/1999/xlink",
     width="8in", 
@@ -24,7 +41,7 @@ local doc = svg {
         -- upper left quadrant
         g {
             id = "quadrant",
-            stroke = "#000000",
+            stroke = "blue",
             stroke_width = 0.01,
             fill = "transparent",
   
@@ -47,18 +64,9 @@ local doc = svg {
             rect {x = 0.75, y = 1.25, width = 0.5, height = 0.5};
             rect {x = 1.75, y = 1.25, width = 0.5, height = 0.5};
 
-            -- vertical lines
-            line { x1 = 3.50, y1 =0.0, x2 = 3.50, y2 = 3.0};
-            line { x1 = 4.00, y1 =0.0, x2 = 4.00, y2 = 3.0};
 
             -- horizontal lines
-            line { x1 = 3.00, y1 = 0.00, x2 = 4.50, y2 = 0.00};
-            line { x1 = 3.00, y1 = 0.50, x2 = 4.50, y2 = 0.50};
-            line { x1 = 3.00, y1 = 1.00, x2 = 4.50, y2 = 1.00};
-            line { x1 = 3.00, y1 = 1.50, x2 = 4.50, y2 = 1.50};
-            line { x1 = 3.00, y1 = 2.00, x2 = 4.50, y2 = 2.00};
-            line { x1 = 3.00, y1 = 2.50, x2 = 4.50, y2 = 2.50};
-            line { x1 = 3.00, y1 = 3.00, x2 = 4.50, y2 = 3.00};
+            gridLines();           
         }
     };
 
@@ -69,8 +77,8 @@ local doc = svg {
     use { ['xlink:href']="#quadrant", transform = "rotate(-90, 0.25, 3.25)  translate(-4.25, 3.25)", x = 0, y = 0};
 
     -- draw a couple of lines crossing in the middle
-    line {x1 = 3.25, y1 = 3.25, x2 = 4.75, y2 = 4.75, stroke = "#000000", stroke_width = 0.01};
-    line {x1 = 3.25, y1 = 4.75, x2 = 4.75, y2 = 3.25, stroke = "#000000", stroke_width = 0.01};
+    line {x1 = 3.25, y1 = 3.25, x2 = 4.75, y2 = 4.75, stroke = "pink", stroke_width = 0.01};
+    line {x1 = 3.25, y1 = 4.75, x2 = 4.75, y2 = 3.25, stroke = "pink", stroke_width = 0.01};
 }
 
 local FileStream = require("svgcreate.filestream")

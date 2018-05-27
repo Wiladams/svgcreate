@@ -31,6 +31,7 @@ http://stevehanov.ca/blog/index.php?id=143
 local ffi = require("ffi")
 local bit = require("bit")
 local band, bor, lshift, rshift = bit.band, bit.bor, bit.lshift, bit.rshift
+local bnot = bit.bnot;
 local ttstream = require("ttstream")
 
 
@@ -1335,7 +1336,7 @@ local function stbtt_GetGlyphHMetrics(info, glyph_index)
     local advanceWidth = 0;
     local leftSideBearing = 0;
 
-    local numOfLongHorMetrics = ttUSHORT(info.data+info.hhea + 34);
+    local numOfLongHorMetrics = info.tables['hhea'].numOfLongHorMetrics; -- ttUSHORT(info.data+info.hhea + 34);
     if (glyph_index < numOfLongHorMetrics) then
       advanceWidth    = ttSHORT(info.data + info.hmtx + 4*glyph_index);
       leftSideBearing = ttSHORT(info.data + info.hmtx + 4*glyph_index + 2);
@@ -1744,15 +1745,8 @@ end
 
 local function stbtt_InitFont_internal(self)
    --self.cff = stbtt__new_buf(nil, 0);
-   --info.loca = stbtt__find_table(data, fontstart, "loca"); -- required
-   --info.head = stbtt__find_table(data, fontstart, "head"); -- required
-   --info.glyf = stbtt__find_table(data, fontstart, "glyf"); -- required
-   --info.hhea = stbtt__find_table(data, fontstart, "hhea"); -- required
-   --info.hmtx = stbtt__find_table(data, fontstart, "hmtx"); -- required
-  -- info.kern = stbtt__find_table(data, fontstart, "kern"); -- not required
-   --info.gpos = stbtt__find_table(data, fontstart, "GPOS"); -- not required
 
-    if (self.tables["glyf"]) then
+   if (self.tables["glyf"]) then
       -- required for truetype
       if (not self.tables["loca"]) then 
         return false;
@@ -1768,7 +1762,6 @@ local function stbtt_InitFont_internal(self)
       local fdselectoff = 0;
       local cff=0;
 
-      --cff = stbtt__find_table(data, fontstart, "CFF ");
       local cff = self.tables["CFF "]
       if (not cff) then 
         return false;
@@ -1815,10 +1808,7 @@ local function stbtt_InitFont_internal(self)
       self.charstrings = stbtt__cff_get_index(b);
     end
 
-   --local maxp = self.tables["maxp"];
    local cmap = self.tables['cmap'];
-
-
 
     self.index_map = 0;
     local i = 0;
@@ -1901,7 +1891,7 @@ function stbtt_fontinfo.new(self, params)
     -- parse required tables
     -- this MUST happen after we've lifted some values up 
     -- into the obj as they are dependent
-    --stbtt_fontinfo.readTable_cmap(obj.tables['cmap'])
+    --stbtt_fontinfo.readTable_cmap(obj, obj.tables['cmap'])
     stbtt_fontinfo.readTable_loca(obj, obj.tables['loca'])     -- depends on 'head'
     stbtt_fontinfo.readTable_glyf(obj, obj.tables['glyf'])     -- depends on 'loca'
 
@@ -1949,34 +1939,37 @@ end
     offsets table.
 ]]
 function stbtt_fontinfo.readTableDirectory(self)
-    self.scalerType = ttULONG(self.data+self.fontstart+0)
-    self.numTables = tonumber(ttUSHORT(self.data+self.fontstart+4));
-    self.searchRange = ttUSHORT(self.data+self.fontstart+6);
-    self.entrySelector = ttUSHORT(self.data+self.fontstart+8);
-    self.rangeShift = ttUSHORT(self.data+self.fontstart+10);
+    local ms = ttstream(self.data, self.length);
+
+    self.scalerType = ms:getUInt32();       -- ttULONG(self.data+self.fontstart+0)
+    self.numTables = ms:getUInt16();        -- tonumber(ttUSHORT(self.data+self.fontstart+4));
+    self.searchRange = ms:getUInt16();      -- ttUSHORT(self.data+self.fontstart+6);
+    self.entrySelector = ms:getUInt16();    -- ttUSHORT(self.data+self.fontstart+8);
+    self.rangeShift = ms:getUInt16();       -- ttUSHORT(self.data+self.fontstart+10);
     
     if self.numTables < 1 then return nil end
 
     -- The table directory starts 12 bytes from the
     -- font offset.
     
-    local tabledir = self.fontstart + 12;
+    --local tabledir = self.fontstart + 12;
     local res = {}
     local i = 0;
     while (i < self.numTables) do
-        local loc = tabledir + 16*i;
-        local name = ffi.string(self.data+loc+0, 4);
-        res[name] = {
-            name = name, 
+        --local loc = tabledir + 16*i;
+        --local name = ffi.string(self.data+loc+0, 4);
+        local tag = ms:getString(4);
+        res[tag] = {
+            tag = tag, 
             index = i;
-            offset = tonumber(ttULONG(self.data+loc+8)),
-            length = tonumber(ttULONG(self.data+loc+12))
+            checksum = ms:getUInt32();
+            offset = ms:getUInt32();    -- tonumber(ttULONG(self.data+loc+8)),
+            length = ms:getUInt32();    -- tonumber(ttULONG(self.data+loc+12))
         }
-        res[name].data = self.data + res[name].offset;
+        res[tag].data = self.data + res[tag].offset;
 
         i = i + 1;
     end
-
 
     return res;
 end
@@ -1984,6 +1977,8 @@ end
 -- Read the contents of the 'maxp' table
 function stbtt_fontinfo.readTable_maxp(self)
     if not self then return false end
+
+    local ms = ttstream(self.data, self.length);
 
     self.version = ttULONG(self.data+0);
     self.numGlyphs = tonumber(ttUSHORT(self.data+4));
@@ -2030,37 +2025,44 @@ function stbtt_fontinfo.readTable_head(self)
 end
 
 function stbtt_fontinfo.readTable_hhea(self, tbl)
-    tbl.version = ttULONG(tbl.data+0);
-    tbl.ascent = tonumber(ttSHORT(tbl.data+4));
-    tbl.descent = tonumber(ttSHORT(tbl.data+6));
-    tbl.lineGap = ttSHORT(tbl.data+8);
-    tbl.advanceWidthMax = ttSHORT(tbl.data+10);
-    tbl.minLeftSideBearing = ttSHORT(tbl.data+12);
-    tbl.minRightSideBearing = ttSHORT(tbl.data+14);
-    tbl.xMaxExtent = ttSHORT(tbl.data+16);
-    tbl.caretSlopeRise = tonumber(ttSHORT(tbl.data+18));
-    tbl.caretSlopeRun = tonumber(ttSHORT(tbl.data+20));
-    tbl.caretOffset = tonumber(ttSHORT(tbl.data+22));
-    --reserved - ttSHORT
-    --reserved - ttSHORT
-    --reserved - ttSHORT
-    --reserved - ttSHORT
-    tbl.metricDataFormat = ttSHORT(tbl.data+32);
-    tbl.numOfLongHorMetrics = tonumber(ttSHORT(tbl.data+34));
+    local ms = ttstream(tbl.data, tbl.length);
 
+    tbl.version = ms:getUInt32(); -- ttULONG(tbl.data+0);
+    tbl.ascent = ms:getFWord();    -- tonumber(ttSHORT(tbl.data+4));
+    tbl.descent = ms:getFWord();    -- tonumber(ttSHORT(tbl.data+6));
+    tbl.lineGap = ms:getFWord();    -- ttSHORT(tbl.data+8);
+    tbl.advanceWidthMax = ms:getUFWord();   -- ttSHORT(tbl.data+10);
+    tbl.minLeftSideBearing = ms:getFWord();  -- ttSHORT(tbl.data+12);
+    tbl.minRightSideBearing = ms:getInt16();    -- ttSHORT(tbl.data+14);
+    tbl.xMaxExtent = ms:getInt16(); -- ttSHORT(tbl.data+16);
+    tbl.caretSlopeRise = ms:getInt16();     -- tonumber(ttSHORT(tbl.data+18));
+    tbl.caretSlopeRun = ms:getInt16();      -- tonumber(ttSHORT(tbl.data+20));
+    tbl.caretOffset = ms:getInt16();        -- tonumber(ttSHORT(tbl.data+22));
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    --reserved - ttSHORT
+    ms:skip(8);
+    tbl.metricDataFormat = ms:getInt16();       
+    tbl.numOfLongHorMetrics = ms:getInt16();    
+
+    return tbl
 end
 
 function stbtt_fontinfo.readTable_loca(self, tbl)
     local numGlyphs = self.numGlyphs
     local locformat = self.indexToLocFormat
+    local ms = ttstream(tbl.data, tbl.length);
 
     tbl.offsets = {}
 
-    for i = 0, numGlyphs do
-        if locformat == 0 then
-            tbl.offsets[i] = tonumber(ttSHORT(tbl.data + 2*i))
-        elseif locformat == 1 then
-            tbl.offsets[i] = tonumber(ttULONG(tbl.data + 4*i))
+    if locformat == 0 then
+        for i = 0, numGlyphs do
+            tbl.offsets[i] = ms:getUInt16()*2;
+        end
+    elseif locformat == 1 then
+        for i = 0, numGlyphs do
+            tbl.offsets[i] = ms:getUInt32();
         end
     end
 
@@ -2078,33 +2080,113 @@ end
 
     Step by step, but by bit
 ]]
+-- FLAG values for glyph
+local ON_CURVE = 1;
+local X_IS_BYTE = 2;
+local Y_IS_BYTE = 4;
+local REPEAT = 8;
+local X_DELTA = 16;
+local Y_DELTA = 32;
+
+function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
+    -- Knowing it's a simple glyph, load in the contour data
+    glyph.simple = true;
+    glyph.countours = {}
+    glyph.points = {}
+    glyph.contourEnds = {}
+
+    -- grab the endpoints for each contour
+    local cnt = 0;
+    while cnt <= glyph.numberOfContours do
+        table.insert(glyph.contourEnds, ms:getInt16())
+        cnt = cnt+1
+    end
+
+    glyph.instructionLength = ms:getUInt16();
+    -- We now know how many bytes of instruction there are, so load that 
+    glyph.instructions = ms:getString(glyph.instructionLength);
+
+    local numPoints = #glyph.contourEnds;
+    local flags = {}
+
+    local i = 0;
+    while ( i < numPoints) do
+        local flag = ms:get8();
+        -- BUGBUG
+        -- should not get to this state
+        if not flag then return ; end
+        --flags[i] = flag;
+        --points[i] = {onCurve = band(flag, ON_CURVE) > 0}
+        table.insert(flags,flag);
+        table.insert(glyph.points, {onCurve = band(flag, ON_CURVE) > 0});
+
+        if band(flag, REPEAT) > 0 then
+            local repeatCount = ms:get8();
+            --assert(repeatCount > 0);
+            i = i+repeatCount;
+            while ( repeatCount>0) do
+                table.insert(flags,flag);
+                table.insert(glyph.points, {onCurve = band(flag, ON_CURVE) > 0});
+                repeatCount = repeatCount - 1;
+            end
+        end
+        i=i+1;
+    end
+
+    -- This function helps us fill in the coordinate values
+    function readCoords(name, byteFlag, deltaFlag, min, max) 
+        local value = 0;
+        local i = 1;
+        while( i <= numPoints) do
+            --print("I: ", name, i, numPoints)
+            local flag = flags[i];
+            if band( flag, byteFlag )>0 then
+                if band( flag, deltaFlag )>0  then
+                    value = value + ms:getUInt8();
+                else
+                    value = value - ms:getUInt8();
+                end
+            elseif band( bnot(flag), deltaFlag )>0 then
+                value = value + ms:getInt16();
+            else
+                -- value is unchanged.
+            end
+
+            glyph.points[i][name] = value;
+            i = i + 1;
+        end
+    end
+
+    readCoords("x", X_IS_BYTE, X_DELTA, glyph.xMin, glyph.xMax);
+    readCoords("y", Y_IS_BYTE, Y_DELTA, glyph.yMin, glyph.yMax);
+
+end
+
 function stbtt_fontinfo.readTable_glyf(self, tbl)
     local numGlyphs = self.numGlyphs
 
 
     local offsets = self.tables['loca'].offsets
     local tbldata = tbl.data;
+    local ms = ttstream(tbl.data, tbl.length);
 
     --print("readTable_glyf.NUMGLYPHS: ", numGlyphs, tbldata, offsets)
 
     tbl.glyphs = {}
     local glyphs = tbl.glyphs
-    local glyphHdrSize = 10; -- size of the non-variable part of the glyph header
 
     for i=0,numGlyphs-1 do
         --local offset = offsets[i];
         --print("OFFSET: ", offsets[i])
-        local offsetCnt = 0;
-        local glyphBase = tbldata + offsets[i];
+        ms:seek(offsets[i])
 
         local glyph = {
-            numberOfContours = tonumber(ttSHORT(glyphBase + 0));
-            xMin = tonumber(ttSHORT(glyphBase+2));
-            yMin = tonumber(ttSHORT(glyphBase+4));
-            xMax = tonumber(ttSHORT(glyphBase+6));
-            yMax = tonumber(ttSHORT(glyphBase+8));
+            numberOfContours = ms:getInt16();
+            xMin = ms:getInt16();
+            yMin = ms:getInt16();
+            xMax = ms:getInt16();
+            yMax = ms:getInt16();
             };
-        offsetCnt = offsetCnt + glyphHdrSize;
 
         -- Based on the number of contours, we can figure out if 
         -- this is a simple glyph, or a compound glyph (combo of glyphs)
@@ -2113,24 +2195,7 @@ function stbtt_fontinfo.readTable_glyf(self, tbl)
         -- contours > 1
         local contourCount = glyph.numberOfContours
         if contourCount > 0 then
-            -- Knowing it's a simple glyph, load in the contour data
-            glyph.simple = true;
-            glyph.countours = {}
-            glyph.points = {}
-            glyph.contourEnds = {}
-
-            -- grab the endpoints for each contour
-            --local endPtsOfContours = {}
-            for cnt=0, contourCount-1 do
-                table.insert(glyph.contourEnds, tonumber(ttUSHORT(glyphBase+offsetCnt)))
-                offsetCnt = offsetCnt + 2;
-            end
---print("ENDPOINTS: ", #endPtsOfContours)
-            local instructionLength = tonumber(ttUSHORT(glyphBase+offsetCnt))
-            offsetCnt = offsetCnt + 2;
-            -- We now know how many bytes of instruction there are, so load that 
-            local instructions = ffi.string(glyphBase+offsetCnt, instructionLength)
-            offsetCnt = offsetCnt + instructionLength;
+            stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
         elseif contourCount < 0 then
             -- composite glyph
         end

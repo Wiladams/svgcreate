@@ -72,9 +72,9 @@ local function printTables(info)
     end
 
     print_table_head(info)
-    print_table_name(info)
+    --print_table_name(info)
     --print_table_loca(info)
-    --print_table_glyf(info)
+    print_table_glyf(info)
 end
 
 local function printFontInfo(info)
@@ -97,7 +97,7 @@ local data = ffi.cast("uint8_t *", ffile:getPointer());
 
 -- initialize a font info so we can start parsing
 --local finfo = ffi.new('struct stbtt_fontinfo')
-local finfo = tt.stbtt_fontinfo {data = data}
+local finfo = tt.stbtt_fontinfo {data = data, length = ffile.size}
 --local res = tt.stbtt_InitFont(finfo, data, 0)
 
 --print("InitFont: ", res)
