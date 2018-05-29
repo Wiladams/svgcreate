@@ -20,17 +20,31 @@ local function print_table_head(info)
 end
 
 local function print_table_glyf(info)
-    local glyphs = info.tables['glyf'].glyphs
-    local numGlyphs = info.numGlyphs;
+    local glyf = info.tables['glyf']
+    local glyphs = glyf.glyphs
 
+    local numGlyphs = info.numGlyphs;
+    print("==== glyf table")
+    --[[
     --for i=0, numGlyphs-1 do
     for i, glyph in ipairs(glyphs) do
         --print(string.format("Contours: %d", glyph.numberOfContours))
-        
-        print(string.format("Contours: %d {%d %d %d %d}", 
-            glyph.numberOfContours, glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax))
-    end
+        print("==== GLYPH : ", i)
+        print("     Simple: ", glyph.simple or false)
+        print("   Contours: ",glyph.numberOfContours)        
+        print(string.format("  Bounds: {%d %d %d %d}", glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax))
 
+            if glyph.numberOfContours > 0 and glyph.points then
+            for j,point in ipairs(glyph.points)  do
+                print("    Point: ", point.x, point.y, point.onCurve)
+--                for k,v in pairs(point) do
+--                    print("         : ", k, v)
+--                end
+            end
+        end
+
+    end
+--]]
 end
 
 local function print_table_loca(info)

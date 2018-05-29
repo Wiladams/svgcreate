@@ -155,6 +155,12 @@ function tt_memstream.getUInt32(self)
     return tonumber(ffi.cast('uint32_t', self:get(4)))
 end
 
+function tt_memstream.getFixed(self)
+    local decimal = self:getInt16();
+    local fraction = self:getUInt16();
+
+    return decimal + fraction / 65535;
+end
 
 -- get a subrange of the memory stream
 -- returning a new memory stream
@@ -167,7 +173,6 @@ function tt_memstream.range(self, pos, s)
 end
 
 -- Convenient types named in the documentation
-tt_memstream.getFixed = tt_memstream.getUInt32;
 tt_memstream.getFWord = tt_memstream.getInt16;
 tt_memstream.getUFWord = tt_memstream.getUInt16;
 tt_memstream.getF2Dot14 = tt_memstream.getInt16;
