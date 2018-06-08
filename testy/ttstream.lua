@@ -162,6 +162,10 @@ function tt_memstream.getFixed(self)
     return decimal + fraction / 65535;
 end
 
+function tt_memstream.getF2Dot14(self)
+    return self:getInt16() / 16384;
+end
+
 -- get a subrange of the memory stream
 -- returning a new memory stream
 function tt_memstream.range(self, pos, s)
