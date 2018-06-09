@@ -119,7 +119,7 @@ function tt_memstream.get(self, n)
         end 
     else
         while  (i < n) do
-            v = bor(lshift(v, 8), self:get8());
+            v = bor(v, lshift(self:get8(), 8*i));
             i = i + 1;
         end 
     end
