@@ -1941,30 +1941,26 @@ end
 function stbtt_fontinfo.readTableDirectory(self)
     local ms = ttstream(self.data, self.length);
 
-    self.scalerType = ms:getUInt32();       -- ttULONG(self.data+self.fontstart+0)
-    self.numTables = ms:getUInt16();        -- tonumber(ttUSHORT(self.data+self.fontstart+4));
-    self.searchRange = ms:getUInt16();      -- ttUSHORT(self.data+self.fontstart+6);
-    self.entrySelector = ms:getUInt16();    -- ttUSHORT(self.data+self.fontstart+8);
-    self.rangeShift = ms:getUInt16();       -- ttUSHORT(self.data+self.fontstart+10);
+    self.scalerTag = ms:getString(4);  -- ms:getUInt32();
+    ms:seek(0);
+    self.scalerType = ms:getUInt32();
+    self.numTables = ms:getUInt16();
+    self.searchRange = ms:getUInt16();
+    self.entrySelector = ms:getUInt16();
+    self.rangeShift = ms:getUInt16();
     
     if self.numTables < 1 then return nil end
-
-    -- The table directory starts 12 bytes from the
-    -- font offset.
     
-    --local tabledir = self.fontstart + 12;
     local res = {}
     local i = 0;
     while (i < self.numTables) do
-        --local loc = tabledir + 16*i;
-        --local name = ffi.string(self.data+loc+0, 4);
         local tag = ms:getString(4);
         res[tag] = {
             tag = tag, 
             index = i;
             checksum = ms:getUInt32();
-            offset = ms:getUInt32();    -- tonumber(ttULONG(self.data+loc+8)),
-            length = ms:getUInt32();    -- tonumber(ttULONG(self.data+loc+12))
+            offset = ms:getUInt32();
+            length = ms:getUInt32();
         }
         res[tag].data = self.data + res[tag].offset;
 
@@ -1980,21 +1976,21 @@ function stbtt_fontinfo.readTable_maxp(self)
 
     local ms = ttstream(self.data, self.length);
 
-    self.version = ttULONG(self.data+0);
-    self.numGlyphs = tonumber(ttUSHORT(self.data+4));
-    self.maxPoints = ttUSHORT(self.data+6);
-    self.maxContours = ttUSHORT(self.data+8);
-    self.maxComponentPoints = ttUSHORT(self.data+10);
-    self.maxComponentContours = ttUSHORT(self.data+12);
-    self.maxZones = ttUSHORT(self.data+14);
-    self.maxTwilightPoints = ttUSHORT(self.data+16);
-    self.maxStorage = ttUSHORT(self.data+18);
-    self.maxFunctionDefs = ttUSHORT(self.data+20);
-    self.maxInstructionDefs = ttUSHORT(self.data+22);
-    self.maxStackElements = ttUSHORT(self.data+24);
-    self.maxSizeOfInstructions = ttUSHORT(self.data+26);
-    self.maxComponentElements = ttUSHORT(self.data+28);
-    self.maxComponentDepth = ttUSHORT(self.data+30);
+    self.version = ms:getFixed() -- ttULONG(self.data+0);
+    self.numGlyphs = ms:getUInt16(); -- tonumber(ttUSHORT(self.data+4));
+    self.maxPoints = ms:getUInt16(); -- ttUSHORT(self.data+6);
+    self.maxContours = ms:getUInt16(); -- ttUSHORT(self.data+8);
+    self.maxComponentPoints = ms:getUInt16(); -- ttUSHORT(self.data+10);
+    self.maxComponentContours = ms:getUInt16(); -- ttUSHORT(self.data+12);
+    self.maxZones = ms:getUInt16(); -- ttUSHORT(self.data+14);
+    self.maxTwilightPoints = ms:getUInt16(); -- ttUSHORT(self.data+16);
+    self.maxStorage = ms:getUInt16(); -- ttUSHORT(self.data+18);
+    self.maxFunctionDefs = ms:getUInt16(); -- ttUSHORT(self.data+20);
+    self.maxInstructionDefs = ms:getUInt16(); -- ttUSHORT(self.data+22);
+    self.maxStackElements = ms:getUInt16();  -- ttUSHORT(self.data+24);
+    self.maxSizeOfInstructions = ms:getUInt16(); -- ttUSHORT(self.data+26);
+    self.maxComponentElements = ms:getUInt16(); -- ttUSHORT(self.data+28);
+    self.maxComponentDepth = ms:getUInt16(); -- ttUSHORT(self.data+30);
 
     return self;
 end
@@ -2004,20 +2000,22 @@ function stbtt_fontinfo.readTable_head(self)
 
     local ms = ttstream(self.data, self.length);
 
-    self.version = ms:getUInt32();
-    self.fontRevision = ms:getUInt32();
+    self.version = ms:getFixed();
+    self.fontRevision = ms:getFixed();
     self.checksumAdjustment = ms:getUInt32();
     self.magicNumber = ms:getUInt32();
     self.flags = ms:getUInt16();
     self.unitsPerEm = ms:getUInt16();
-    ms:skip(16);
-    self.xMin = ms:getInt16();
-    self.yMin = ms:getInt16();
-    self.xMax = ms:getInt16();
-    self.yMax = ms:getInt16();
+    -- self.created = ms:getLongDateTime();
+    -- self.modified = ms:getLongDateTime();
+    ms:skip(16); 
+    self.xMin = ms:getFWord();
+    self.yMin = ms:getFWord();
+    self.xMax = ms:getFWord();
+    self.yMax = ms:getFWord();
     self.macStyle = ms:getUInt16();
     self.lowestRecPPEM = ms:getUInt16();
-    self.fontDirectionHint = ms:getUInt16();
+    self.fontDirectionHint = ms:getInt16();
     self.indexToLocFormat = ms:getInt16();
     self.glyphDataFormat = ms:getInt16();
 
@@ -2027,14 +2025,14 @@ end
 function stbtt_fontinfo.readTable_hhea(self, tbl)
     local ms = ttstream(tbl.data, tbl.length);
 
-    tbl.version = ms:getUInt32(); -- ttULONG(tbl.data+0);
+    tbl.version = ms:getFixed(); -- ttULONG(tbl.data+0);
     tbl.ascent = ms:getFWord();    -- tonumber(ttSHORT(tbl.data+4));
     tbl.descent = ms:getFWord();    -- tonumber(ttSHORT(tbl.data+6));
     tbl.lineGap = ms:getFWord();    -- ttSHORT(tbl.data+8);
     tbl.advanceWidthMax = ms:getUFWord();   -- ttSHORT(tbl.data+10);
     tbl.minLeftSideBearing = ms:getFWord();  -- ttSHORT(tbl.data+12);
-    tbl.minRightSideBearing = ms:getInt16();    -- ttSHORT(tbl.data+14);
-    tbl.xMaxExtent = ms:getInt16(); -- ttSHORT(tbl.data+16);
+    tbl.minRightSideBearing = ms:getFWord();    -- ttSHORT(tbl.data+14);
+    tbl.xMaxExtent = ms:getFWord(); -- ttSHORT(tbl.data+16);
     tbl.caretSlopeRise = ms:getInt16();     -- tonumber(ttSHORT(tbl.data+18));
     tbl.caretSlopeRun = ms:getInt16();      -- tonumber(ttSHORT(tbl.data+20));
     tbl.caretOffset = ms:getInt16();        -- tonumber(ttSHORT(tbl.data+22));
@@ -2044,7 +2042,7 @@ function stbtt_fontinfo.readTable_hhea(self, tbl)
     --reserved - ttSHORT
     ms:skip(8);
     tbl.metricDataFormat = ms:getInt16();       
-    tbl.numOfLongHorMetrics = ms:getInt16();    
+    tbl.numOfLongHorMetrics = ms:getUInt16();    
 
     return tbl
 end
@@ -2057,11 +2055,11 @@ function stbtt_fontinfo.readTable_loca(self, tbl)
     tbl.offsets = {}
 
     if locformat == 0 then
-        for i = 0, numGlyphs do
+        for i = 0, numGlyphs-1 do
             tbl.offsets[i] = ms:getUInt16()*2;
         end
     elseif locformat == 1 then
-        for i = 0, numGlyphs do
+        for i = 0, numGlyphs-1 do
             tbl.offsets[i] = ms:getUInt32();
         end
     end

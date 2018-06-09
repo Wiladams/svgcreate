@@ -6,20 +6,22 @@
     It differs from the MemoryStream object in that it can't
     write, and it has more specific data type reading 
     convenience calls.
+
+    More specifically, all of the numeric reading assumes the
+    data in the stream is formatted in 'big-endian' order.  That
+    is, the high order bytes come first.
 ]]
 local ffi = require("ffi")
 local bit = require("bit")
 local bor, lshift = bit.bor, bit.lshift
 
 
--- ffi.cdef[[
--- typedef struct
--- {
---    uint8_t *data;
---    size_t cursor;
---    size_t size;
--- } stbtt__buf;
--- ]]
+--[[
+    Standard 'object' construct.
+    __call is implemented so we get a 'constructor'
+    sort of feel:
+    tt_memstream(data, size, position)
+]]
 local tt_memstream = {}
 setmetatable(tt_memstream, {
 		__call = function(self, ...)
@@ -32,12 +34,13 @@ local tt_memstream_mt = {
 }
 
 
-function tt_memstream.init(self, data, size, position)
+function tt_memstream.init(self, data, size, position, littleendian)
     position = position or 0
 
-    assert(size < 0x40000000);
+    assert(size > 0);
 
     local obj = {
+        bigend = not littleendian;
         data = data;
         size = size;
         cursor = 0;
@@ -94,23 +97,31 @@ function tt_memstream.get8(self)
     if (self.cursor >= self.size) then
        return false;
     end
-    --b.data[b.cursor++];
+
     local r = self.data[self.cursor];
     self.cursor = self.cursor + 1;
     
     return r
  end
  
-  -- get as many bytes specifiec in n as an integer
+  -- get as many bytes specified in n as an integer
  -- this could possibly work up to 7 byte integers
  -- converts from big endian to native format while it goes
 function tt_memstream.get(self, n)
     --STBTT_assert(n >= 1 and n <= 4);
     local v = 0;
     local i = 0;
-    while  (i < n) do
-        v = bor(lshift(v, 8), self:get8());
-        i = i + 1;
+
+    if self.bigend then
+        while  (i < n) do
+            v = bor(lshift(v, 8), self:get8());
+            i = i + 1;
+        end 
+    else
+        while  (i < n) do
+            v = bor(lshift(v, 8), self:get8());
+            i = i + 1;
+        end 
     end
 
     return v;
@@ -179,7 +190,6 @@ end
 -- Convenient types named in the documentation
 tt_memstream.getFWord = tt_memstream.getInt16;
 tt_memstream.getUFWord = tt_memstream.getUInt16;
-tt_memstream.getF2Dot14 = tt_memstream.getInt16;
 tt_memstream.getOffset16 = tt_memstream.getUInt16;
 tt_memstream.getOffset32 = tt_memstream.getUInt32;
 

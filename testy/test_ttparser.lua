@@ -92,14 +92,18 @@ local function printTables(info)
 end
 
 local function printFontInfo(info)
+    local SCALER_TRUETYPE = 0x10000
+
     print("==== FONT INFO ====")
+    print("        True Type: ", info.scalerType == SCALER_TRUETYPE or 'false')
+    print("       Scaler Tag: ", info.scalerTag)
     print("       Num Glyphs: ", info.numGlyphs)
     print("       Num Tables: ", info.numTables)
     print(" indexToLocFormat: ", info.indexToLocFormat)
     print("           ascent: ", info.ascent)
     print("          descent: ", info.descent)
     
-    printTables(info)
+    --printTables(info)
 end
 
 -- memory map the file so we have a pointer to start with
