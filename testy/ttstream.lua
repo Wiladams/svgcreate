@@ -184,7 +184,7 @@ function tt_memstream.range(self, pos, s)
         return nil;
     end
 
-    return tt_memstream(self.data+pos, pos, s)
+    return tt_memstream(self.data+pos, 0, s)
 end
 
 -- Convenient types named in the documentation
