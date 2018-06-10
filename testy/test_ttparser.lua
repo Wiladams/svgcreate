@@ -21,30 +21,34 @@ end
 
 local function print_table_glyf(info)
     local glyf = info.tables['glyf']
-    local glyphs = glyf.glyphs
+    --local glyphs = glyf.glyphs
 
     local numGlyphs = info.numGlyphs;
     print("==== glyf table")
-    --[[
-    --for i=0, numGlyphs-1 do
-    for i, glyph in ipairs(glyphs) do
+    local i = 0;
+    while (i < info.numGlyphs-2) do
+        local glyph = glyf.glyphs[i]
         --print(string.format("Contours: %d", glyph.numberOfContours))
-        print("==== GLYPH : ", i)
-        print("     Simple: ", glyph.simple or false)
-        print("   Contours: ",glyph.numberOfContours)        
+        print("==== GLYPH : ", i, glyph.index)
+        print("         Simple: ", glyph.simple or false)
+        print("       Contours: ",glyph.numberOfContours)  
+        print("      Num Flags: ", glyph.numFlags)      
         print(string.format("  Bounds: {%d %d %d %d}", glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax))
-
-            if glyph.numberOfContours > 0 and glyph.points then
-            for j,point in ipairs(glyph.points)  do
-                print("    Point: ", point.x, point.y, point.onCurve)
---                for k,v in pairs(point) do
---                    print("         : ", k, v)
---                end
+        if glyph.numberOfContours > 0 and glyph.xcoords then
+            --print("      Flags: ", #glyph.flags)
+            --for k,flag in ipairs(glyph.flags) do
+            --    print(string.format("Flag: %d  Value: 0x%04x", k, flag))
+            --end
+            local j = 0
+            while j < glyph.numCoords do
+                --print("    Point: ", j, glyph.xCoords[j], glyph.yCoords[j])
+                print(string.format("    Point: %5d %5d %5d", j, glyph.xcoords[j] or -10000, glyph.ycoords[j] or -10000))
+                j = j + 1;
             end
         end
 
+        i = i + 1;
     end
---]]
 end
 
 local function print_table_loca(info)
@@ -85,7 +89,7 @@ local function printTables(info)
         end
     end
 
-    print_table_head(info)
+    --print_table_head(info)
     --print_table_name(info)
     --print_table_loca(info)
     print_table_glyf(info)
@@ -103,7 +107,7 @@ local function printFontInfo(info)
     print("           ascent: ", info.ascent)
     print("          descent: ", info.descent)
     
-    --printTables(info)
+    printTables(info)
 end
 
 -- memory map the file so we have a pointer to start with

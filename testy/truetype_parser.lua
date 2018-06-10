@@ -24,6 +24,14 @@ https://docs.microsoft.com/en-us/typography/opentype/spec/font-file
 
 Let's Read a TrueType Font
 http://stevehanov.ca/blog/index.php?id=143
+
+Implementations
+https://github.com/photopea/Typr.js
+https://opentype.js.org/
+
+Other references
+https://github.com/Jolg42/awesome-typography
+
 --]]
 
 
@@ -40,16 +48,6 @@ local sqrt = math.sqrt;
 local floor = math.floor;
 local ceil = math.ceil;
 
---[[
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-////
-////   INTEGRATION WITH YOUR CODEBASE
-////
-////   The following sections allow you to supply alternate definitions
-////   of C library functions used by stb_truetype, e.g. if you don't
-////   link with the C runtime library.
---]]
 
 ffi.cdef[[
    // #define your own (u)stbtt_int8/16/32 before including to override this
@@ -349,19 +347,6 @@ local function stbtt__cff_index_get(b, i)
 end
 
 
---[[
-//////////////////////////////////////////////////////////////////////////
-//
-// accessors to parse data from file
-//
-
-// on platforms that don't allow misaligned reads, if we want to allow
-// truetype fonts that aren't padded to alignment, define ALLOW_UNALIGNED_TRUETYPE
-
-#define ttBYTE(p)     (* (stbtt_uint8 *) (p))
-#define ttCHAR(p)     (* (stbtt_int8 *) (p))
-#define ttFixed(p)    ttLONG(p)
---]]
 -- BUGBUG - need to mind the signed versions
 local function ttUSHORT(p) return ffi.cast('uint16_t',lshift(p[0],8) + p[1]); end
 local function ttSHORT(p)  return ffi.cast('int16_t', lshift(p[0],8) + p[1]); end
@@ -1651,7 +1636,7 @@ local function stbtt_GetFontVMetrics(info)
         ttSHORT(info.data+info.hhea + 6),
         ttSHORT(info.data+info.hhea + 8)
 end
-
+--[[
 local function  stbtt_GetFontVMetricsOS2(info)
     local tab = stbtt__find_table(info.data, info.fontstart, "OS/2");
     if (tab == 0) then
@@ -1661,8 +1646,8 @@ local function  stbtt_GetFontVMetricsOS2(info)
     --return typoAscent, typeDescent, typeLineGap
    return ttSHORT(info.data+tab + 68),ttSHORT(info.data+tab + 70), ttSHORT(info.data+tab + 72)
 end
-
-
+--]]
+--[[
 local function stbtt_GetFontBoundingBox(info )
     -- int *x0, int *y0, int *x1, int *y1
     return ttSHORT(info.data + info.head + 36),
@@ -1670,7 +1655,7 @@ local function stbtt_GetFontBoundingBox(info )
         ttSHORT(info.data + info.head + 40),
         ttSHORT(info.data + info.head + 42);
 end
-
+--]]
 
 local function stbtt_ScaleForPixelHeight(info, height)
 
@@ -1683,11 +1668,11 @@ local function stbtt_ScaleForMappingEmToPixels(info, pixels)
    local unitsPerEm = ttUSHORT(info.data + info.head + 18);
    return pixels / unitsPerEm;
 end
-
+--[[
 local function stbtt_FreeShape(info, v)
    STBTT_free(v, info.userdata);
 end
-
+--]]
 
 local function stbtt_GetFontOffsetForIndex(data, index)
 
@@ -2079,72 +2064,169 @@ end
     Step by step, but by bit
 ]]
 -- FLAG values for glyph
-local ON_CURVE = 1;
-local X_IS_BYTE = 2;
-local Y_IS_BYTE = 4;
-local REPEAT = 8;
-local X_DELTA = 16;
-local Y_DELTA = 32;
+local TT_GLYF_ON_CURVE  = 1;
+local TT_GLYF_X_IS_BYTE = 2;
+local TT_GLYF_Y_IS_BYTE = 4;
+local TT_GLYF_REPEAT    = 8;
+local TT_GLYF_X_DELTA   = 16;
+local TT_GLYF_Y_DELTA   = 32;
+
+local function debugit(idx, glyph, fmt, ...)
+    if glyph.index ~= idx then
+        return;
+    end
+    local sfmt = string.format("%d = ",idx)..fmt
+    print(string.format(sfmt, ...))
+end
 
 function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
     -- Knowing it's a simple glyph, load in the contour data
     glyph.simple = true;
-    glyph.countours = {}
-    glyph.points = {}
+    --glyph.countours = {}
+    --glyph.points = {}
     glyph.contourEnds = {}
+    glyph.xcoords = {}
+    glyph.ycoords = {}
 
     -- grab the endpoints for each contour
-    local cnt = 0;
-    while cnt <= glyph.numberOfContours do
-        table.insert(glyph.contourEnds, ms:getInt16())
-        cnt = cnt+1
+    --debugit(26, glyph, "CONTOURS: %d", glyph.numberOfContours)
+    for cnt=1, glyph.numberOfContours do
+        glyph.contourEnds[cnt] = ms:getUInt16()
+        --debugit(26, glyph, "END: %d",glyph.contourEnds[cnt])
     end
 
-    glyph.instructionLength = ms:getUInt16();
     -- We now know how many bytes of instruction there are, so load that 
+    glyph.instructionLength = ms:getUInt16();
     glyph.instructions = ms:getString(glyph.instructionLength);
 
-    local numPoints = #glyph.contourEnds;
+    local noc  = glyph.contourEnds[glyph.numberOfContours]+1;
+    glyph.numFlags = noc;
+    glyph.numCoords = noc;
     local flags = {}
+    glyph.flags = flags;
 
+
+    -- First, read all the flags
     local i = 0;
-    while ( i < numPoints) do
-        local flag = ms:get8();
-        -- BUGBUG
-        -- should not get to this state
-        if not flag then return ; end
-        --flags[i] = flag;
-        --points[i] = {onCurve = band(flag, ON_CURVE) > 0}
-        table.insert(flags,flag);
-        table.insert(glyph.points, {onCurve = band(flag, ON_CURVE) > 0});
+    local offset = 0;
+    --debugit(26, glyph, "Number of Coords: %d", noc)
+    while ( i < noc) do
+        local flag = ms:getUInt8();
+        assert(flag)
+        --debugit(26, glyph, "FLAG: %d  0x%04x", i, flag)
 
-        if band(flag, REPEAT) > 0 then
+        glyph.flags[offset] = flag;     offset = offset + 1;
+
+        -- repeat only applies to the
+        -- flags themselves, so we do the expansion
+        -- and increment the loop counter accordingly
+        if band(flag, TT_GLYF_REPEAT) > 0 then
             local repeatCount = ms:get8();
+            i = i + repeatCount;
+            --debugit(26, glyph, "  Repeat: 0x%04x  %d", flag, repeatCount)
             --assert(repeatCount > 0);
-            i = i+repeatCount;
-            while ( repeatCount>0) do
-                table.insert(flags,flag);
-                table.insert(glyph.points, {onCurve = band(flag, ON_CURVE) > 0});
-                repeatCount = repeatCount - 1;
+            local j = 0;
+            while ( j < repeatCount) do
+                flags[offset] = flag;   offset = offset + 1;
+                j = j + 1;
             end
         end
+
         i=i+1;
     end
+    --print("  HINTS, OFFSET: ", numHintFlags, offset)
 
+    -- Now that we have the flags, we know how to read
+    -- the coordinate values
+---[[
+    -- Get the x coordinates
+    i = 0;
+    while (i < noc) do
+        local is8 = band(flags[i], TT_GLYF_X_IS_BYTE) ~= 0
+        local same = band(flags[i], TT_GLYF_X_DELTA) ~= 0
+
+        if is8 then
+            -- The `same` bit is re-used for short values to signify the sign of the value.
+            glyph.xcoords[i] = ms:getUInt8();
+            if not same then 
+                glyph.xcoords[i] = -glyph.xcoords[i];
+            end
+        else
+            -- if 'same' is set, then the value is the same
+            -- as the previous value, which we'll fixup later
+            if same then 
+                glyph.xcoords[i] = 0
+            else
+                glyph.xcoords[i] = ms:getInt16();
+            end
+        end
+
+        i = i + 1;
+    end
+
+
+    i =0;
+    while (i < noc) do
+        local i8 = band(flags[i], TT_GLYF_Y_IS_BYTE) ~= 0
+        local same = band(flags[i], TT_GLYF_Y_DELTA) ~= 0
+        if i8 then
+            if same then
+                glyph.ycoords[i] = ms:getUInt8();
+            else
+                glyph.ycoords[i] = -ms:getUInt8();
+            end
+        else
+            if same then
+                -- setting this to zero here is simply saying the delta
+                -- is zero, so this point will take on the same value
+                -- as the previous point
+                glyph.ycoords[i] = 0
+            else
+                glyph.ycoords[i] = ms:getInt16();
+            end
+        end
+
+        i = i + 1;
+    end
+
+    -- What's stored in the coordinate arrays up to
+    -- this point are delta values (except the 0th position)
+    -- So, here we do an adjustment so the values are absolute
+    -- values instead
+---[[
+    local x = 0;
+    local y = 0;
+    i = 0;
+    while i < noc do
+        x = x + glyph.xcoords[i];
+        y = y + glyph.ycoords[i];
+        glyph.xcoords[i] = x;
+        glyph.ycoords[i] = y;
+        i = i + 1;
+    end
+--]]
+--[[
     -- This function helps us fill in the coordinate values
     function readCoords(name, byteFlag, deltaFlag, min, max) 
         local value = 0;
-        local i = 1;
-        while( i <= numPoints) do
-            --print("I: ", name, i, numPoints)
+        local i = 0;
+        while( i < noc) do
             local flag = flags[i];
-            if band( flag, byteFlag )>0 then
-                if band( flag, deltaFlag )>0  then
+            local is8 = band(flag, byteFlag) ~= 0
+            local same = band(flag, deltaFlag) ~= 0
+
+            if is8 then
+                -- in the case of using a byte to designate a delta
+                -- if 'same' is true, that means it's a positive value
+                -- otherwise, it's negative.  Essentially the sign bit
+                -- is represented by the deltaFlag
+                if same  then
                     value = value + ms:getUInt8();
                 else
                     value = value - ms:getUInt8();
                 end
-            elseif band( bnot(flag), deltaFlag )>0 then
+            elseif same then
+                --print("DELTA")
                 value = value + ms:getInt16();
             else
                 -- value is unchanged.
@@ -2155,9 +2237,11 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
         end
     end
 
-    readCoords("x", X_IS_BYTE, X_DELTA, glyph.xMin, glyph.xMax);
-    readCoords("y", Y_IS_BYTE, Y_DELTA, glyph.yMin, glyph.yMax);
+    --print("I: Points: ", glyph.index, numPoints)
 
+    readCoords("x", TT_GLYF_X_IS_BYTE, TT_GLYF_X_DELTA, glyph.xMin, glyph.xMax);
+    readCoords("y", TT_GLYF_Y_IS_BYTE, TT_GLYF_Y_DELTA, glyph.yMin, glyph.yMax);
+--]]
 end
 
 function stbtt_fontinfo.readTable_glyf(self, tbl)
@@ -2173,12 +2257,14 @@ function stbtt_fontinfo.readTable_glyf(self, tbl)
     tbl.glyphs = {}
     local glyphs = tbl.glyphs
 
-    for i=0,numGlyphs-1 do
+    local i = 0;
+    while i < numGlyphs-2 do
         --local offset = offsets[i];
         --print("OFFSET: ", offsets[i])
         ms:seek(offsets[i])
 
         local glyph = {
+            index = i;
             numberOfContours = ms:getInt16();
             xMin = ms:getInt16();
             yMin = ms:getInt16();
@@ -2198,10 +2284,10 @@ function stbtt_fontinfo.readTable_glyf(self, tbl)
             -- composite glyph
         end
 
-
-
-
-        table.insert(glyphs, glyph)    
+        glyphs[i] = glyph;
+        --table.insert(glyphs, glyph)
+        
+        i = i + 1;
     end
 
     --print("readTabke_glyf: FINISHED")

@@ -144,6 +144,10 @@ function tt_memstream.get32(self)
 end
 
 -- These ensure the sign is dealth with properly
+function tt_memstream.getInt8(self)
+    return tonumber(ffi.cast('int8_t', self:get(1)))
+end
+
 function tt_memstream.getUInt8(self)
     return tonumber(ffi.cast('uint8_t', self:get(1)))
 end
