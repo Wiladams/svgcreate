@@ -34,16 +34,25 @@ local function print_table_glyf(info)
         print("       Contours: ",glyph.numberOfContours)  
         print("      Num Flags: ", glyph.numFlags)      
         print(string.format("  Bounds: {%d %d %d %d}", glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax))
-        if glyph.numberOfContours > 0 and glyph.xcoords then
-            --print("      Flags: ", #glyph.flags)
-            --for k,flag in ipairs(glyph.flags) do
-            --    print(string.format("Flag: %d  Value: 0x%04x", k, flag))
-            --end
-            local j = 0
-            while j < glyph.numCoords do
-                --print("    Point: ", j, glyph.xCoords[j], glyph.yCoords[j])
-                print(string.format("    Point: %5d %5d %5d", j, glyph.xcoords[j] or -10000, glyph.ycoords[j] or -10000))
-                j = j + 1;
+        --print("== INSTRUCTIONS ==")
+        --print(glyph.instructions)
+
+        -- Print out the actual points on the glyph
+        if glyph.numberOfContours > 0 and glyph.coords then
+            -- group printing of coordinates by contours
+            local lastPoint = 0
+            local nextLastPoint = 0
+            local contourCount = 1;
+            while contourCount <= glyph.numberOfContours do
+                nextLastPoint = glyph.contourEnds[contourCount]
+                print("CONTOUR: ", contourCount, nextLastPoint)
+                local ptCounter = lastPoint
+                while (ptCounter <= nextLastPoint) do
+                    print(string.format("    Point: %5d %5d %5d", ptCounter, glyph.coords[ptCounter].x, glyph.coords[ptCounter].y))
+                    ptCounter = ptCounter + 1;
+                end
+                lastPoint = nextLastPoint+1;
+                contourCount = contourCount + 1;
             end
         end
 

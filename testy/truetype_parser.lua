@@ -2085,8 +2085,9 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
     --glyph.countours = {}
     --glyph.points = {}
     glyph.contourEnds = {}
-    glyph.xcoords = {}
-    glyph.ycoords = {}
+    glyph.coords = {}
+    --glyph.xcoords = {}
+    --glyph.ycoords = {}
 
     -- grab the endpoints for each contour
     --debugit(26, glyph, "CONTOURS: %d", glyph.numberOfContours)
@@ -2102,8 +2103,8 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
     local noc  = glyph.contourEnds[glyph.numberOfContours]+1;
     glyph.numFlags = noc;
     glyph.numCoords = noc;
-    local flags = {}
-    glyph.flags = flags;
+    glyph.flags = {};
+    local flags = glyph.flags;
 
 
     -- First, read all the flags
@@ -2115,7 +2116,9 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
         assert(flag)
         --debugit(26, glyph, "FLAG: %d  0x%04x", i, flag)
 
-        glyph.flags[offset] = flag;     offset = offset + 1;
+        glyph.flags[offset] = flag;     
+        glyph.coords[offset] = {onCurve = band(flag,TT_GLYF_ON_CURVE) ~= 0 }
+        offset = offset + 1;
 
         -- repeat only applies to the
         -- flags themselves, so we do the expansion
@@ -2127,86 +2130,19 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
             --assert(repeatCount > 0);
             local j = 0;
             while ( j < repeatCount) do
-                flags[offset] = flag;   offset = offset + 1;
+                flags[offset] = flag;   
+                glyph.coords[offset] = {onCurve = band(flag,TT_GLYF_ON_CURVE) ~= 0 }
+                offset = offset + 1;
                 j = j + 1;
             end
         end
 
         i=i+1;
     end
-    --print("  HINTS, OFFSET: ", numHintFlags, offset)
-
-    -- Now that we have the flags, we know how to read
-    -- the coordinate values
----[[
-    -- Get the x coordinates
-    i = 0;
-    while (i < noc) do
-        local is8 = band(flags[i], TT_GLYF_X_IS_BYTE) ~= 0
-        local same = band(flags[i], TT_GLYF_X_DELTA) ~= 0
-
-        if is8 then
-            -- The `same` bit is re-used for short values to signify the sign of the value.
-            glyph.xcoords[i] = ms:getUInt8();
-            if not same then 
-                glyph.xcoords[i] = -glyph.xcoords[i];
-            end
-        else
-            -- if 'same' is set, then the value is the same
-            -- as the previous value, which we'll fixup later
-            if same then 
-                glyph.xcoords[i] = 0
-            else
-                glyph.xcoords[i] = ms:getInt16();
-            end
-        end
-
-        i = i + 1;
-    end
 
 
-    i =0;
-    while (i < noc) do
-        local i8 = band(flags[i], TT_GLYF_Y_IS_BYTE) ~= 0
-        local same = band(flags[i], TT_GLYF_Y_DELTA) ~= 0
-        if i8 then
-            if same then
-                glyph.ycoords[i] = ms:getUInt8();
-            else
-                glyph.ycoords[i] = -ms:getUInt8();
-            end
-        else
-            if same then
-                -- setting this to zero here is simply saying the delta
-                -- is zero, so this point will take on the same value
-                -- as the previous point
-                glyph.ycoords[i] = 0
-            else
-                glyph.ycoords[i] = ms:getInt16();
-            end
-        end
-
-        i = i + 1;
-    end
-
-    -- What's stored in the coordinate arrays up to
-    -- this point are delta values (except the 0th position)
-    -- So, here we do an adjustment so the values are absolute
-    -- values instead
----[[
-    local x = 0;
-    local y = 0;
-    i = 0;
-    while i < noc do
-        x = x + glyph.xcoords[i];
-        y = y + glyph.ycoords[i];
-        glyph.xcoords[i] = x;
-        glyph.ycoords[i] = y;
-        i = i + 1;
-    end
---]]
---[[
-    -- This function helps us fill in the coordinate values
+    -- This function helps us convert from the currently stored
+    -- delta values, into absolute coordinate values
     function readCoords(name, byteFlag, deltaFlag, min, max) 
         local value = 0;
         local i = 0;
@@ -2226,13 +2162,13 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
                     value = value - ms:getUInt8();
                 end
             elseif same then
+                -- value is unchanged.
+            else
                 --print("DELTA")
                 value = value + ms:getInt16();
-            else
-                -- value is unchanged.
             end
 
-            glyph.points[i][name] = value;
+            glyph.coords[i][name] = value;
             i = i + 1;
         end
     end
@@ -2241,7 +2177,7 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
 
     readCoords("x", TT_GLYF_X_IS_BYTE, TT_GLYF_X_DELTA, glyph.xMin, glyph.xMax);
     readCoords("y", TT_GLYF_Y_IS_BYTE, TT_GLYF_Y_DELTA, glyph.yMin, glyph.yMax);
---]]
+
 end
 
 function stbtt_fontinfo.readTable_glyf(self, tbl)
