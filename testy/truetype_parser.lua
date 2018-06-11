@@ -1391,7 +1391,9 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
 
     -- We now know how many bytes of instruction there are, so load that 
     glyph.instructionLength = ms:getUInt16();
-    glyph.instructions = ms:getString(glyph.instructionLength);
+    --print("INSTRUCTIONLENGTH: ", glyph.instructionLength)
+    --glyph.instructions = ms:getString(glyph.instructionLength);
+    glyph.instructions = ms:getBytes(glyph.instructionLength);
 
     local noc  = glyph.contourEnds[glyph.numberOfContours]+1;
     glyph.numFlags = noc;

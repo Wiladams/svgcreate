@@ -35,6 +35,19 @@ local function print_table_cmap(font)
     end
 end
 
+local function printInstructions(ins, len)
+    print("== INSTRUCTIONS ==")
+    if not ins then print ("- NONE -") return false end
+    
+    len = len or #ins
+
+    if len < 1 then return false end
+    for i=0,len-1 do
+        --print(ins[i])
+        print(string.format("0x%02X", ins[i]))
+    end
+end
+
 local function print_table_glyf(info)
     local glyf = info.tables['glyf']
     --local glyphs = glyf.glyphs
@@ -50,8 +63,7 @@ local function print_table_glyf(info)
         print("       Contours: ",glyph.numberOfContours)  
         print("      Num Flags: ", glyph.numFlags)      
         print(string.format("  Bounds: {%d %d %d %d}", glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax))
-        --print("== INSTRUCTIONS ==")
-        --print(glyph.instructions)
+
 
         -- Print out the actual points on the glyph
         if glyph.numberOfContours > 0 and glyph.coords then
@@ -71,6 +83,8 @@ local function print_table_glyf(info)
                 contourCount = contourCount + 1;
             end
         end
+
+        printInstructions(glyph.instructions, glyph.instructionLength)
 
         i = i + 1;
     end
@@ -117,8 +131,8 @@ local function printTables(info)
     --print_table_head(info)
     --print_table_name(info)
     --print_table_loca(info)
-    print_table_cmap(info)
-    --print_table_glyf(info)
+    --print_table_cmap(info)
+    print_table_glyf(info)
 end
 
 local function printFontInfo(info)

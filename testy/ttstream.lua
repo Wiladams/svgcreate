@@ -41,7 +41,7 @@ function tt_memstream.init(self, data, size, position, littleendian)
 
     local obj = {
         bigend = not littleendian;
-        data = data;
+        data = ffi.cast("uint8_t *", data);
         size = size;
         cursor = 0;
     }
@@ -128,8 +128,19 @@ function tt_memstream.get(self, n)
 end
 
 -- BUGBUG, do error checking against end of stream
+function tt_memstream.getBytes(self, n)
+    local bytes = ffi.new("uint8_t[?]", n)
+    ffi.copy(bytes, self.data+self.cursor, n)
+    self.cursor = self.cursor + n;
+    
+    return bytes;
+end
+
 function tt_memstream.getString(self, n)
-    str = ffi.string(self.data+self.cursor, n)
+    if n < 1 then return false end
+
+    local str = ffi.string(self.data+self.cursor, n)
+    --print("STR: ", #str)
     self.cursor = self.cursor + n;
 
     return str;
