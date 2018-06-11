@@ -19,6 +19,22 @@ local function print_table_head(info)
     print("glyphDataFormat: ", info.tables['head'].glyphDataFormat)
 end
 
+local function print_table_cmap(font)
+    print("==== print_table_cmap ====")
+    local cmap = font.tables['cmap']
+    if not cmap then print("NO CMAP TABLE") end
+
+    print(string.format("         Version: 0x%08x", cmap.version))
+    print("Number of Tables: ", cmap.numTables)
+    print("ENCODINGS")
+    for i, platform in pairs(cmap.encodings) do
+        for j, encoding in pairs(platform) do
+            print(string.format("  PlatformID: %d  EncodingID: %d  Offset: %d  Format: %d",
+                encoding.platformID, encoding.encodingID, encoding.offset, encoding.format))
+        end
+    end
+end
+
 local function print_table_glyf(info)
     local glyf = info.tables['glyf']
     --local glyphs = glyf.glyphs
@@ -101,7 +117,8 @@ local function printTables(info)
     --print_table_head(info)
     --print_table_name(info)
     --print_table_loca(info)
-    print_table_glyf(info)
+    print_table_cmap(info)
+    --print_table_glyf(info)
 end
 
 local function printFontInfo(info)
