@@ -78,15 +78,6 @@ enum { // encodingID for STBTT_PLATFORM_ID_UNICODE
    STBTT_UNICODE_EID_UNICODE_2_0_FULL=4
 };
 
-enum { // encodingID for STBTT_PLATFORM_ID_MICROSOFT
-   STBTT_MS_EID_SYMBOL        =0,
-   STBTT_MS_EID_UNICODE_BMP   =1,
-   STBTT_MS_EID_SHIFTJIS      =2,
-   STBTT_MS_EID_PRC      =3,
-   STBTT_MS_EID_BIGFIVE      =4,
-   STBTT_MS_EID_JOHAB      =6,
-   STBTT_MS_EID_UNICODE_FULL  =10
-};
 
 enum { // encodingID for STBTT_PLATFORM_ID_MAC; same as Script Manager codes
    STBTT_MAC_EID_ROMAN        =0,   STBTT_MAC_EID_ARABIC       =4,
@@ -95,15 +86,7 @@ enum { // encodingID for STBTT_PLATFORM_ID_MAC; same as Script Manager codes
    STBTT_MAC_EID_KOREAN       =3,   STBTT_MAC_EID_RUSSIAN      =7
 };
 
-enum { // languageID for STBTT_PLATFORM_ID_MICROSOFT; same as LCID...
-       // problematic because there are e.g. 16 english LCIDs and 16 arabic LCIDs
-   STBTT_MS_LANG_ENGLISH     =0x0409,   STBTT_MS_LANG_ITALIAN     =0x0410,
-   STBTT_MS_LANG_CHINESE     =0x0804,   STBTT_MS_LANG_JAPANESE    =0x0411,
-   STBTT_MS_LANG_DUTCH       =0x0413,   STBTT_MS_LANG_KOREAN      =0x0412,
-   STBTT_MS_LANG_FRENCH      =0x040c,   STBTT_MS_LANG_RUSSIAN     =0x0419,
-   STBTT_MS_LANG_GERMAN      =0x0407,   STBTT_MS_LANG_SPANISH     =0x0409,
-   STBTT_MS_LANG_HEBREW      =0x040d,   STBTT_MS_LANG_SWEDISH     =0x041D
-};
+
 
 enum { // languageID for STBTT_PLATFORM_ID_MAC
    STBTT_MAC_LANG_ENGLISH      =0 ,   STBTT_MAC_LANG_JAPANESE     =11,
@@ -135,6 +118,23 @@ local TT_MS_ID_RESERVED1    = 7;
 local TT_MS_ID_RESERVED2    = 8;
 local TT_MS_ID_RESERVED3    = 9;
 local TT_MS_ID_UCS_4        = 10;
+
+-- languageID for STBTT_PLATFORM_ID_MICROSOFT; same as LCID...
+-- problematic because there are e.g. 16 english LCIDs and 16 arabic LCIDs
+local TT_MS_LANG_ENGLISH     = 0x0409;  
+local TT_MS_LANG_ITALIAN          = 0x0410;
+local TT_MS_LANG_CHINESE        = 0x0804;  
+local TT_MS_LANG_JAPANESE      = 0x0411;
+local TT_MS_LANG_DUTCH          = 0x0413;  
+local TT_MS_LANG_KOREAN        = 0x0412;
+local TT_MS_LANG_FRENCH         = 0x040c;  
+local TT_MS_LANG_RUSSIAN       = 0x0419;
+local TT_MS_LANG_GERMAN         = 0x0407;  
+local TT_MS_LANG_SPANISH       = 0x0409;
+local TT_MS_LANG_HEBREW         = 0x040d;  
+local TT_MS_LANG_SWEDISH       = 0x041D
+
+
 
 local STBTT_ifloor = math.floor
 local STBTT_iceil = math.ceil
@@ -841,17 +841,14 @@ local function stbtt_GetFontVMetrics(info)
         ttSHORT(info.data+info.hhea + 6),
         ttSHORT(info.data+info.hhea + 8)
 end
---[[
-local function  stbtt_GetFontVMetricsOS2(info)
-    local tab = stbtt__find_table(info.data, info.fontstart, "OS/2");
-    if (tab == 0) then
-      return false;
-    end
 
-    --return typoAscent, typeDescent, typeLineGap
-   return ttSHORT(info.data+tab + 68),ttSHORT(info.data+tab + 70), ttSHORT(info.data+tab + 72)
+local function  stbtt_GetFontVMetricsOS2(font)
+    local tab = font.tables["OS/2"]
+    if not tab then return false; end
+
+    return tab.typeAscent, typeDescent, typeLineGap;
 end
---]]
+
 --[[
 local function stbtt_GetFontBoundingBox(info )
     -- int *x0, int *y0, int *x1, int *y1
@@ -891,14 +888,14 @@ end
 
 
 -- The fontinfo object
-local stbtt_fontinfo = {}
+local Font = {}
 -- Create a default constructor
 setmetatable(stbtt_fontinfo, {
 	__call = function(self, ...)
 		return self:new(...);
 	end,
 })
-local stbtt_fontinfo_mt = {
+local Font_mt = {
     __index = stbtt_fointinfo;
 }
 
@@ -1031,7 +1028,7 @@ local function stbtt_InitFont_internal(self)
 end
 
 
-function stbtt_fontinfo.new(self, params)
+function Font.new(self, params)
 	local obj = params or {}
 
     obj.data = obj.data or nil;
@@ -1043,16 +1040,16 @@ function stbtt_fontinfo.new(self, params)
 
     -- offsets from start of file to a few tables
     if obj.data ~= nil then
-        obj.tables = stbtt_fontinfo.readTableDirectory(obj);
+        obj.tables = Font.readTableDirectory(obj);
  
         -- check to make sure the font has the required headers
         assert(hasRequiredHeaders(obj))
 
         -- parse the non-dependent tables here
-        stbtt_fontinfo.readTable_maxp(obj.tables['maxp'])
-        stbtt_fontinfo.readTable_head(obj.tables['head'])
-        stbtt_fontinfo.readTable_hhea(obj, obj.tables['hhea'])
-        stbtt_fontinfo.readTable_name(obj.tables['name'])
+        Font.readTable_maxp(obj.tables['maxp'])
+        Font.readTable_head(obj.tables['head'])
+        Font.readTable_hhea(obj, obj.tables['hhea'])
+        Font.readTable_name(obj.tables['name'])
     end
 
     
@@ -1081,9 +1078,9 @@ function stbtt_fontinfo.new(self, params)
     -- parse required tables
     -- this MUST happen after we've lifted some values up 
     -- into the obj as they are dependent
-    stbtt_fontinfo.readTable_cmap(obj, obj.tables['cmap'])
-    stbtt_fontinfo.readTable_loca(obj, obj.tables['loca'])     -- depends on 'head'
-    stbtt_fontinfo.readTable_glyf(obj, obj.tables['glyf'])     -- depends on 'loca'
+    Font.readTable_cmap(obj, obj.tables['cmap'])
+    Font.readTable_loca(obj, obj.tables['loca'])     -- depends on 'head'
+    Font.readTable_glyf(obj, obj.tables['glyf'])     -- depends on 'loca'
 
 
     stbtt_InitFont_internal(obj)
@@ -1097,7 +1094,7 @@ function stbtt_fontinfo.new(self, params)
     stbtt__buf fdselect;               // map from glyph to fontdict
 --]] 
 
-    setmetatable(obj, stbtt_fontinfo_mt);
+    setmetatable(obj, Font_mt);
     return obj;
 end
 
@@ -1128,7 +1125,7 @@ end
     We'll fill in all the attributes, including the
     offsets table.
 ]]
-function stbtt_fontinfo.readTableDirectory(self)
+function Font.readTableDirectory(self)
     local ms = ttstream(self.data, self.length);
 
     self.scalerTag = ms:getString(4);  -- ms:getUInt32();
@@ -1218,7 +1215,7 @@ local function read_cmap_format(cmap, encodingRecord)
     return encodingRecord
 end
 
-function stbtt_fontinfo.readTable_cmap(self, tbl)
+function Font.readTable_cmap(self, tbl)
     local ms = ttstream(tbl.data, tbl.length);
 
     tbl.version = ms:getUInt16();
@@ -1250,7 +1247,7 @@ end
 
 
 
-function stbtt_fontinfo.readTable_head(self)
+function Font.readTable_head(self)
     if not self then return false end
 
     local ms = ttstream(self.data, self.length);
@@ -1277,7 +1274,7 @@ function stbtt_fontinfo.readTable_head(self)
     return self;
 end
 
-function stbtt_fontinfo.readTable_hhea(self, tbl)
+function Font.readTable_hhea(self, tbl)
     local ms = ttstream(tbl.data, tbl.length);
 
     tbl.version = ms:getFixed(); -- ttULONG(tbl.data+0);
@@ -1302,7 +1299,7 @@ function stbtt_fontinfo.readTable_hhea(self, tbl)
     return tbl
 end
 
-function stbtt_fontinfo.readTable_loca(self, tbl)
+function Font.readTable_loca(self, tbl)
     local numGlyphs = self.numGlyphs
     local locformat = self.indexToLocFormat
     local ms = ttstream(tbl.data, tbl.length);
@@ -1323,7 +1320,7 @@ function stbtt_fontinfo.readTable_loca(self, tbl)
 end
 
 -- Read the contents of the 'maxp' table
-function stbtt_fontinfo.readTable_maxp(self)
+function Font.readTable_maxp(self)
     if not self then return false end
 
     local ms = ttstream(self.data, self.length);
@@ -1368,7 +1365,7 @@ local TT_GLYF_Y_DELTA   = 32;
 
 
 
-function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
+function Font.readSimpleGlyph(self, glyph, ms)
     local function debugit(idx, glyph, fmt, ...)
         if glyph.index ~= idx then
             return;
@@ -1473,7 +1470,7 @@ function stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
     readCoords("y", TT_GLYF_Y_IS_BYTE, TT_GLYF_Y_DELTA, glyph.yMin, glyph.yMax);
 end
 
-function stbtt_fontinfo.readTable_glyf(self, tbl)
+function Font.readTable_glyf(self, tbl)
     local numGlyphs = self.numGlyphs
 
     local offsets = self.tables['loca'].offsets
@@ -1507,7 +1504,7 @@ function stbtt_fontinfo.readTable_glyf(self, tbl)
         -- contours > 1
         local contourCount = glyph.numberOfContours
         if contourCount > 0 then
-            stbtt_fontinfo.readSimpleGlyph(self, glyph, ms)
+            Font.readSimpleGlyph(self, glyph, ms)
         elseif contourCount < 0 then
             -- composite glyph
         end
@@ -1531,7 +1528,7 @@ end
     As long as we know the length of the 'string' (which we do), there's 
     no problem encapsulating it in a lua string.
 ]]
-function stbtt_fontinfo.readTable_name(tbl)
+function Font.readTable_name(tbl)
     local ms = ttstream(tbl.data, tbl.length);
     tbl.format = ms:getUInt16();
     tbl.count = ms:getUInt16();
@@ -1564,7 +1561,7 @@ function stbtt_fontinfo.readTable_name(tbl)
 end
 
 local exports = {
-    stbtt_fontinfo = stbtt_fontinfo;
+    Font = Font;
 }
 
 return exports

@@ -158,9 +158,7 @@ local data = ffi.cast("uint8_t *", ffile:getPointer());
 --print("DATA: ", data)
 
 -- initialize a font info so we can start parsing
---local finfo = ffi.new('struct stbtt_fontinfo')
-local finfo = tt.stbtt_fontinfo {data = data, length = ffile.size}
---local res = tt.stbtt_InitFont(finfo, data, 0)
+local finfo = tt.Font {data = data, length = ffile.size}
 
 --print("InitFont: ", res)
 
