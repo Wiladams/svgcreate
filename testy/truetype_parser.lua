@@ -386,22 +386,7 @@ end
 
 
 
-local function stbtt__find_table(data, fontstart, tag)
-    local tagptr = ffi.cast('uint8_t *', tag)
 
-    local num_tables = ttUSHORT(data+fontstart+4);
-    local tabledir = fontstart + 12;
-    local i = 0;
-    while (i < num_tables) do
-        local loc = tabledir + 16*i;
-        if (stbtt_tag(data+loc+0, tagptr)) then
-            return tonumber(ttULONG(data+loc+8));
-        end
-        i = i + 1;
-    end
-   
-   return 0;
-end
 
 
 local function stbtt_GetFontOffsetForIndex_internal(font_collection, index)
@@ -444,22 +429,6 @@ local function stbtt_GetNumberOfFonts_internal(font_collection)
 end
 
 
-local function stbtt__get_subrs(cff, fontdict)
-
-   local subrsoff = ffi.new('stbtt_uint32[1]',0); 
-   local private_loc = ffi.new('stbtt_uint32[2]',0,0);
-
-   local pdict = ffi.new('stbtt__buf');
-   stbtt__dict_get_ints(fontdict, 18, 2, private_loc);
-   if ((private_loc[1] ==0) or (private_loc[0]==0)) then return stbtt__new_buf(nil, 0); end
-
-   pdict = stbtt__buf_range(cff, private_loc[1], private_loc[0]);
-   stbtt__dict_get_ints(pdict, 19, 1, subrsoff);
-   if (subrsoff[0] == 0) then return stbtt__new_buf(nil, 0); end
-   stbtt__buf_seek(cff, private_loc[1]+subrsoff[0]);
-   
-   return stbtt__cff_get_index(cff);
-end
 
 
 local function stbtt_FindGlyphIndex(self, unicode_codepoint)
