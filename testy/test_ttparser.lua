@@ -128,7 +128,7 @@ local function printTables(info)
         end
     end
 
-    --print_table_head(info)
+    print_table_head(info)
     --print_table_name(info)
     --print_table_loca(info)
     --print_table_cmap(info)

@@ -224,13 +224,14 @@ typedef struct
 } stbtt_vertex;
 ]]
 
-
+--[[
 local STBTT_MAX_OVERSAMPLE  = 8
 
 assert(STBTT_MAX_OVERSAMPLE <= 255,  "STBTT_MAX_OVERSAMPLE cannot be > 255")
 
 
 --typedef int stbtt__test_oversample_pow2[(STBTT_MAX_OVERSAMPLE & (STBTT_MAX_OVERSAMPLE-1)) == 0 ? 1 : -1];
+--]]
 
 --[[
 //////////////////////////////////////////////////////////////////////////
@@ -479,315 +480,7 @@ local function stbtt_setvertex(v, typ, x, y, cx, cy)
    v.cy = cy;
 end
 
---[[
-local function int stbtt__GetGlyfOffset(const stbtt_fontinfo *info, int glyph_index)
 
-   int g1,g2;
-
-   STBTT_assert(!info.cff.size);
-
-   if (glyph_index >= info.numGlyphs) return -1; // glyph index out of range
-   if (info.indexToLocFormat >= 2)    return -1; // unknown index.glyph map format
-
-   if (info.indexToLocFormat == 0) {
-      g1 = info.glyf + ttUSHORT(info.data + info.loca + glyph_index * 2) * 2;
-      g2 = info.glyf + ttUSHORT(info.data + info.loca + glyph_index * 2 + 2) * 2;
-   } else {
-      g1 = info.glyf + ttULONG (info.data + info.loca + glyph_index * 4);
-      g2 = info.glyf + ttULONG (info.data + info.loca + glyph_index * 4 + 4);
-   }
-
-   return g1==g2 ? -1 : g1; // if length is 0, return -1
-end
-
-int stbtt_GetGlyphBox(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1)
-
-    if (info.cff.size > 0) then
-      local res = stbtt__GetGlyphInfoT2(info, glyph_index);
-      return res;
-    else
-        local g = stbtt__GetGlyfOffset(info, glyph_index);
-        if (g < 0) then return 0; end
-        return {
-            idx = glyph_index;
-            x0 = ttSHORT(info.data + g + 2);
-            y0 = ttSHORT(info.data + g + 4);
-            x1 = ttSHORT(info.data + g + 6);
-            y1 = ttSHORT(info.data + g + 8);
-        }
-    end
-
-   return 1;
-end
-
-int stbtt_GetCodepointBox(const stbtt_fontinfo *info, int codepoint, int *x0, int *y0, int *x1, int *y1)
-{
-   return stbtt_GetGlyphBox(info, stbtt_FindGlyphIndex(info,codepoint), x0,y0,x1,y1);
-}
-
-local function stbtt_IsGlyphEmpty(info, glyph_index)
-
-    local numberOfContours;
-    local g;
-    
-    if (info.cff.size > 0) then
-        return stbtt__GetGlyphInfoT2(info, glyph_index) ~= nil;
-    end
-
-    local g = stbtt__GetGlyfOffset(info, glyph_index);
-    if (g < 0) then return true; end
-
-    local numberOfContours = ttSHORT(info.data + g);
-    
-    return numberOfContours == 0;
-end
-
-local function int stbtt__close_shape(stbtt_vertex *vertices, int num_vertices, int was_off, int start_off,
-    stbtt_int32 sx, stbtt_int32 sy, stbtt_int32 scx, stbtt_int32 scy, stbtt_int32 cx, stbtt_int32 cy)
-{
-   if (start_off) {
-      if (was_off)
-         stbtt_setvertex(&vertices[num_vertices++], STBTT_vcurve, (cx+scx)>>1, (cy+scy)>>1, cx,cy);
-      stbtt_setvertex(&vertices[num_vertices++], STBTT_vcurve, sx,sy,scx,scy);
-   } else {
-      if (was_off)
-         stbtt_setvertex(&vertices[num_vertices++], STBTT_vcurve,sx,sy,cx,cy);
-      else
-         stbtt_setvertex(&vertices[num_vertices++], STBTT_vline,sx,sy,0,0);
-   }
-   return num_vertices;
-}
-
-local function stbtt__GetGlyphShapeTT(info, glyph_index, stbtt_vertex **pvertices)
-
-   stbtt_int16 numberOfContours;
-   stbtt_uint8 *endPtsOfContours;
-   stbtt_uint8 *data = info.data;
-   stbtt_vertex *vertices=0;
-   local num_vertices=0;
-   int g = stbtt__GetGlyfOffset(info, glyph_index);
-
-   *pvertices = NULL;
-
-   if (g < 0) return 0;
-
-   numberOfContours = ttSHORT(data + g);
-
-    if (numberOfContours > 0) then
-      local flags=0;
-      local flagcount=0;
-      stbtt_int32 ins, i,j=0,m,n, next_move, was_off=0, off, start_off=0;
-      stbtt_int32 x,y,cx,cy,sx,sy, scx,scy;
-      stbtt_uint8 *points;
-      endPtsOfContours = (data + g + 10);
-      ins = ttUSHORT(data + g + 10 + numberOfContours * 2);
-      points = data + g + 10 + numberOfContours * 2 + 2 + ins;
-
-      n = 1+ttUSHORT(endPtsOfContours + numberOfContours*2-2);
-
-      m = n + 2*numberOfContours;  -- a loose bound on how many vertices we might need
-      --vertices = (stbtt_vertex *) STBTT_malloc(m * sizeof(vertices[0]), info.userdata);
-      local vertices = ffi.new("stbtt_vertex[?]", m, info.userdata)
-      if (vertices == nil) then 
-         return false;
-      end
-
-      next_move = 0;
-      flagcount=0;
-
-      -- in first pass, we load uninterpreted data into the allocated array
-      -- above, shifted to the end of the array so we won't overwrite it when
-      -- we create our final data starting from the front
-
-      off = m - n; // starting offset for uninterpreted data, regardless of how m ends up being calculated
-
-      // first load flags
-
-      for (i=0; i < n; ++i) {
-         if (flagcount == 0) {
-            flags = *points++;
-            if (flags & 8)
-               flagcount = *points++;
-         } else
-            --flagcount;
-         vertices[off+i].type = flags;
-      }
-
-      // now load x coordinates
-      x=0;
-      for (i=0; i < n; ++i) {
-         flags = vertices[off+i].type;
-         if (flags & 2) {
-            stbtt_int16 dx = *points++;
-            x += (flags & 16) ? dx : -dx; // ???
-         } else {
-            if (!(flags & 16)) {
-               x = x + (stbtt_int16) (points[0]*256 + points[1]);
-               points += 2;
-            }
-         }
-         vertices[off+i].x = (stbtt_int16) x;
-      }
-
-      // now load y coordinates
-      y=0;
-      for (i=0; i < n; ++i) {
-         flags = vertices[off+i].type;
-         if (flags & 4) {
-            stbtt_int16 dy = *points++;
-            y += (flags & 32) ? dy : -dy; // ???
-         } else {
-            if (!(flags & 32)) {
-               y = y + (stbtt_int16) (points[0]*256 + points[1]);
-               points += 2;
-            }
-         }
-         vertices[off+i].y = (stbtt_int16) y;
-      }
-
-      // now convert them to our format
-      num_vertices=0;
-      sx = sy = cx = cy = scx = scy = 0;
-      for (i=0; i < n; ++i) {
-         flags = vertices[off+i].type;
-         x     = (stbtt_int16) vertices[off+i].x;
-         y     = (stbtt_int16) vertices[off+i].y;
-
-         if (next_move == i) {
-            if (i != 0)
-               num_vertices = stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
-
-            // now start the new one               
-            start_off = !(flags & 1);
-            if (start_off) {
-               // if we start off with an off-curve point, then when we need to find a point on the curve
-               // where we can start, and we need to save some state for when we wraparound.
-               scx = x;
-               scy = y;
-               if (!(vertices[off+i+1].type & 1)) {
-                  // next point is also a curve point, so interpolate an on-point curve
-                  sx = (x + (stbtt_int32) vertices[off+i+1].x) >> 1;
-                  sy = (y + (stbtt_int32) vertices[off+i+1].y) >> 1;
-               } else {
-                  // otherwise just use the next point as our start point
-                  sx = (stbtt_int32) vertices[off+i+1].x;
-                  sy = (stbtt_int32) vertices[off+i+1].y;
-                  ++i; // we're using point i+1 as the starting point, so skip it
-               }
-            } else {
-               sx = x;
-               sy = y;
-            }
-            stbtt_setvertex(&vertices[num_vertices++], STBTT_vmove,sx,sy,0,0);
-            was_off = 0;
-            next_move = 1 + ttUSHORT(endPtsOfContours+j*2);
-            ++j;
-         } else {
-            if (!(flags & 1)) { // if it's a curve
-               if (was_off) // two off-curve control points in a row means interpolate an on-curve midpoint
-                  stbtt_setvertex(&vertices[num_vertices++], STBTT_vcurve, (cx+x)>>1, (cy+y)>>1, cx, cy);
-               cx = x;
-               cy = y;
-               was_off = 1;
-            } else {
-               if (was_off)
-                  stbtt_setvertex(&vertices[num_vertices++], STBTT_vcurve, x,y, cx, cy);
-               else
-                  stbtt_setvertex(&vertices[num_vertices++], STBTT_vline, x,y,0,0);
-               was_off = 0;
-            }
-         }
-      }
-      num_vertices = stbtt__close_shape(vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
-    elseif (numberOfContours == -1) then
-      // Compound shapes.
-      int more = 1;
-      stbtt_uint8 *comp = data + g + 10;
-      num_vertices = 0;
-      vertices = 0;
-      while (more) {
-         stbtt_uint16 flags, gidx;
-         int comp_num_verts = 0, i;
-         stbtt_vertex *comp_verts = 0, *tmp = 0;
-         float mtx[6] = {1,0,0,1,0,0}, m, n;
-         
-         flags = ttSHORT(comp); comp+=2;
-         gidx = ttSHORT(comp); comp+=2;
-
-         if (flags & 2) { // XY values
-            if (flags & 1) { // shorts
-               mtx[4] = ttSHORT(comp); comp+=2;
-               mtx[5] = ttSHORT(comp); comp+=2;
-            } else {
-               mtx[4] = ttCHAR(comp); comp+=1;
-               mtx[5] = ttCHAR(comp); comp+=1;
-            }
-         }
-         else {
-            // @TODO handle matching point
-            STBTT_assert(0);
-         }
-         if (flags & (1<<3)) { // WE_HAVE_A_SCALE
-            mtx[0] = mtx[3] = ttSHORT(comp)/16384.0f; comp+=2;
-            mtx[1] = mtx[2] = 0;
-         } else if (flags & (1<<6)) { // WE_HAVE_AN_X_AND_YSCALE
-            mtx[0] = ttSHORT(comp)/16384.0f; comp+=2;
-            mtx[1] = mtx[2] = 0;
-            mtx[3] = ttSHORT(comp)/16384.0f; comp+=2;
-         } else if (flags & (1<<7)) { // WE_HAVE_A_TWO_BY_TWO
-            mtx[0] = ttSHORT(comp)/16384.0f; comp+=2;
-            mtx[1] = ttSHORT(comp)/16384.0f; comp+=2;
-            mtx[2] = ttSHORT(comp)/16384.0f; comp+=2;
-            mtx[3] = ttSHORT(comp)/16384.0f; comp+=2;
-         }
-         
-         // Find transformation scales.
-         m = (float) STBTT_sqrt(mtx[0]*mtx[0] + mtx[1]*mtx[1]);
-         n = (float) STBTT_sqrt(mtx[2]*mtx[2] + mtx[3]*mtx[3]);
-
-         // Get indexed glyph.
-         comp_num_verts = stbtt_GetGlyphShape(info, gidx, &comp_verts);
-         if (comp_num_verts > 0) {
-            // Transform vertices.
-            for (i = 0; i < comp_num_verts; ++i) {
-               stbtt_vertex* v = &comp_verts[i];
-               stbtt_vertex_type x,y;
-               x=v.x; y=v.y;
-               v.x = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v.y = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
-               x=v.cx; y=v.cy;
-               v.cx = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
-               v.cy = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
-            }
-            // Append vertices.
-            tmp = (stbtt_vertex*)STBTT_malloc((num_vertices+comp_num_verts)*sizeof(stbtt_vertex), info.userdata);
-            if (!tmp) {
-               if (vertices) STBTT_free(vertices, info.userdata);
-               if (comp_verts) STBTT_free(comp_verts, info.userdata);
-               return 0;
-            }
-            if (num_vertices > 0) STBTT_memcpy(tmp, vertices, num_vertices*sizeof(stbtt_vertex));
-            STBTT_memcpy(tmp+num_vertices, comp_verts, comp_num_verts*sizeof(stbtt_vertex));
-            if (vertices) STBTT_free(vertices, info.userdata);
-            vertices = tmp;
-            STBTT_free(comp_verts, info.userdata);
-            num_vertices += comp_num_verts;
-         }
-         // More components ?
-         more = flags & (1<<5);
-      }
-    elseif (numberOfContours < 0) then
-      -- @TODO other compound variations?
-      STBTT_assert(0);
-    else
-      -- numberOfCounters == 0, do nothing
-    end
-
-   pvertices[0] = vertices;
-   
-   return num_vertices;
-end
---]]
 
 
 local function stbtt_GetGlyphHMetrics(info, glyph_index)
@@ -890,7 +583,7 @@ end
 -- The fontinfo object
 local Font = {}
 -- Create a default constructor
-setmetatable(stbtt_fontinfo, {
+setmetatable(Font, {
 	__call = function(self, ...)
 		return self:new(...);
 	end,
@@ -1176,9 +869,10 @@ local function read_cmap_format(cmap, encodingRecord)
             print("CMAP FORMAT 0")
             er.length = ms:getUInt16();
             er.language = ms:getUInt16();
-            er.index_map = {};
+            er.index_map = ffi.new("uint8_t[?]", 256);
+
             for i=0,255 do
-                encodingRecord.index_map[i] = ms:getUInt8();
+                er.index_map[i] = ms:getUInt8();
             end
         end;
 
@@ -1194,7 +888,8 @@ local function read_cmap_format(cmap, encodingRecord)
             er.language = ms:getUInt16();
             er.firstCode = ms:getUInt16();
             er.entryCount = ms:getUInt16();
-            er.index_map = {};
+            er.index_map = ffi.new("uint16_t[?]", er.entryCount);
+
             for i=0,er.entryCount-1 do
                 index_map[i] = ms:getUInt16();
             end
