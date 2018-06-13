@@ -6,7 +6,7 @@ package.path = "../?.lua;"..package.path;
 local ffi = require("ffi")
 local tt = require("truetype_parser")
 local mmap = require("mmap_win32")
-
+local ttinstruct = require("tt_instruction")
 
 
 local function print_table_head(info)
@@ -41,11 +41,12 @@ local function printInstructions(ins, len)
     
     len = len or #ins
 
-    if len < 1 then return false end
-    for i=0,len-1 do
+    ttinstruct.transcode(ins,len);
+--    if len < 1 then return false end
+--    for i=0,len-1 do
         --print(ins[i])
-        print(string.format("0x%02X", ins[i]))
-    end
+--        print(string.format("0x%02X", ins[i]))
+--    end
 end
 
 local function print_table_glyf(info)
