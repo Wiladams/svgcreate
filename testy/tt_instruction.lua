@@ -1,34 +1,37 @@
 local ttstream = require('ttstream')
 local opcodes = {}
 local actions = {}
-function actions.defaultAction(vm, opentry)
+
+
+function actions.defaultAction(vm, opcode, opentry, ms)
+    print(string.format("0x%02X  %8s", opcode, opentry.name))
 end
 
 
-function actions.NPUSHB(vm, opentry, ms)
+function actions.NPUSHB(vm, opcode, opentry, ms)
 
     local nbytes = ms:get8();
-print("NPUSHB: ", nbytes)
+--print("NPUSHB: ", nbytes)
     if not nbytes then print("UNKNOWN", name) end
 
-    io.write(string.format("%8s ", opentry.name))
+    io.write(string.format("%8s(%d) ", opentry.name, nbytes))
     for i=1,nbytes do
         io.write(string.format(" 0x%02x", ms:get8()));
     end
     io.write("\n");
 end
 
-function actions.PUSHB(vm, opentry, ms)
+function actions.PUSHB(vm, opcode, opentry, ms)
 
     local opargs = {
-        ['PUSHB[1]'] = 1;
-        ['PUSHB[2]'] = 2;
-        ['PUSHB[3]'] = 3;
-        ['PUSHB[4]'] = 4;
-        ['PUSHB[5]'] = 5;
-        ['PUSHB[6]'] = 6;
-        ['PUSHB[7]'] = 7;
-        ['PUSHB[8]'] = 8;
+        ['PUSHB[0]'] = 1;
+        ['PUSHB[1]'] = 2;
+        ['PUSHB[2]'] = 3;
+        ['PUSHB[3]'] = 4;
+        ['PUSHB[4]'] = 5;
+        ['PUSHB[5]'] = 6;
+        ['PUSHB[6]'] = 7;
+        ['PUSHB[7]'] = 8;
     }
     local nbytes = opargs[opentry.name]
     if not nbytes then print("UNKNOWN", name) end
@@ -40,17 +43,17 @@ function actions.PUSHB(vm, opentry, ms)
     io.write("\n");
 end
 
-function actions.PUSHW(vm, opentry, ms)
+function actions.PUSHW(vm, opcode, opentry, ms)
 
     local opargs = {
-        ['PUSHW[1]'] = 1;
-        ['PUSHW[2]'] = 2;
-        ['PUSHW[3]'] = 3;
-        ['PUSHW[4]'] = 4;
-        ['PUSHW[5]'] = 5;
-        ['PUSHW[6]'] = 6;
-        ['PUSHW[7]'] = 7;
-        ['PUSHW[8]'] = 8;
+        ['PUSHW[0]'] = 1;
+        ['PUSHW[1]'] = 2;
+        ['PUSHW[2]'] = 3;
+        ['PUSHW[3]'] = 4;
+        ['PUSHW[4]'] = 5;
+        ['PUSHW[5]'] = 6;
+        ['PUSHW[6]'] = 7;
+        ['PUSHW[7]'] = 8;
     }
     local nbytes = opargs[opentry.name]
     if not nbytes then print("UNKNOWN", name) end
@@ -63,23 +66,23 @@ function actions.PUSHW(vm, opentry, ms)
 end
 
 opcodes[0x40] = {name = 'NPUSHB'; action = actions.NPUSHB};
-opcodes[0x41] = {name = 'NPUSHW'; action = actions.streamPull};
-opcodes[0xB0] = {name = 'PUSHB[1]'; action = actions.PUSHB};
-opcodes[0xB1] = {name = 'PUSHB[2]'; action = actions.PUSHB};
-opcodes[0xB2] = {name = 'PUSHB[3]'; action = actions.PUSHB};
-opcodes[0xB3] = {name = 'PUSHB[4]'; action = actions.PUSHB};
-opcodes[0xB4] = {name = 'PUSHB[5]'; action = actions.PUSHB};
-opcodes[0xB5] = {name = 'PUSHB[6]'; action = actions.PUSHB};
-opcodes[0xB6] = {name = 'PUSHB[7]'; action = actions.PUSHB};
-opcodes[0xB7] = {name = 'PUSHB[8]'; action = actions.PUSHB};
-opcodes[0xB8] = {name = 'PUSHW[1]'; action = actions.PUSHW};
-opcodes[0xB9] = {name = 'PUSHW[2]'; action = actions.PUSHW};
-opcodes[0xBA] = {name = 'PUSHW[3]'; action = actions.PUSHW};
-opcodes[0xBB] = {name = 'PUSHW[4]'; action = actions.PUSHW};
-opcodes[0xBC] = {name = 'PUSHW[5]'; action = actions.PUSHW};
-opcodes[0xBD] = {name = 'PUSHW[6]'; action = actions.PUSHW};
-opcodes[0xBE] = {name = 'PUSHW[7]'; action = actions.PUSHW};
-opcodes[0xBF] = {name = 'PUSHW[8]'; action = actions.PUSHW};
+opcodes[0x41] = {name = 'NPUSHW'; action = actions.NPUSHW};
+opcodes[0xB0] = {name = 'PUSHB[0]'; action = actions.PUSHB};
+opcodes[0xB1] = {name = 'PUSHB[1]'; action = actions.PUSHB};
+opcodes[0xB2] = {name = 'PUSHB[2]'; action = actions.PUSHB};
+opcodes[0xB3] = {name = 'PUSHB[3]'; action = actions.PUSHB};
+opcodes[0xB4] = {name = 'PUSHB[4]'; action = actions.PUSHB};
+opcodes[0xB5] = {name = 'PUSHB[5]'; action = actions.PUSHB};
+opcodes[0xB6] = {name = 'PUSHB[6]'; action = actions.PUSHB};
+opcodes[0xB7] = {name = 'PUSHB[7]'; action = actions.PUSHB};
+opcodes[0xB8] = {name = 'PUSHW[0]'; action = actions.PUSHW};
+opcodes[0xB9] = {name = 'PUSHW[1]'; action = actions.PUSHW};
+opcodes[0xBA] = {name = 'PUSHW[2]'; action = actions.PUSHW};
+opcodes[0xBB] = {name = 'PUSHW[3]'; action = actions.PUSHW};
+opcodes[0xBC] = {name = 'PUSHW[4]'; action = actions.PUSHW};
+opcodes[0xBD] = {name = 'PUSHW[5]'; action = actions.PUSHW};
+opcodes[0xBE] = {name = 'PUSHW[6]'; action = actions.PUSHW};
+opcodes[0xBF] = {name = 'PUSHW[7]'; action = actions.PUSHW};
 
 opcodes[0x7F] = {name = 'AA'; action = actions.defaultAction};
 opcodes[0x64] = {name = 'ABS'; action = actions.defaultAction};
@@ -124,7 +127,8 @@ opcodes[0x58] = {name = 'IF'; action = actions.defaultAction};
 opcodes[0x8E] = {name = 'INSTCTRL'; action = actions.defaultAction};
 opcodes[0x39] = {name = 'IP'; action = actions.defaultAction};
 opcodes[0x0F] = {name = 'ISECT'; action = actions.defaultAction};
---opcodes[0x30 - 0x31] = {name = 'IUP[a]'; action = actions.defaultAction};
+opcodes[0x30] = {name = 'IUP[0]'; action = actions.defaultAction};
+opcodes[0x31] = {name = 'IUP[1]'; action = actions.defaultAction};
 opcodes[0x1C] = {name = 'JMPR'; action = actions.defaultAction};
 opcodes[0x79] = {name = 'JROF'; action = actions.defaultAction};
 opcodes[0x78] = {name = 'JROT'; action = actions.defaultAction};
@@ -133,12 +137,17 @@ opcodes[0x50] = {name = 'LT'; action = actions.defaultAction};
 opcodes[0x51] = {name = 'LTEQ'; action = actions.defaultAction};
 opcodes[0X8B] = {name = 'MAX'; action = actions.defaultAction};
 --opcodes[0x49 - 0x4A] = {name = 'MD[a]'; action = actions.defaultAction};
---opcodes[0x2E - 0x2F] = {name = 'MDAP[ a ]'; action = actions.defaultAction};
+opcodes[0x2E] = {name = 'MDAP[0]'; action = actions.defaultAction};
+opcodes[0x2F] = {name = 'MDAP[1]'; action = actions.defaultAction};
 --opcodes[0xC0 - 0xDF] = {name = 'MDRP[abcde]'; action = actions.defaultAction};
 --opcodes[0x3E - 0x3F] = {name = 'MIAP[a]'; action = actions.defaultAction};
 opcodes[0X8C] = {name = 'MIN'; action = actions.defaultAction};
 opcodes[0x26] = {name = 'MINDEX'; action = actions.defaultAction};
 --opcodes[0xE0 - 0xFF] = {name = 'MIRP[abcde]'; action = actions.defaultAction};
+opcodes[0xED] = {name = 'MIRP[abcde]'; action = actions.defaultAction};
+opcodes[0xFD] = {name = 'MIRP[abcde]'; action = actions.defaultAction};
+opcodes[0xFE] = {name = 'MIRP[abcde]'; action = actions.defaultAction};
+opcodes[0xFF] = {name = 'MIRP[abcde]'; action = actions.defaultAction};
 opcodes[0x4B] = {name = 'MPPEM'; action = actions.defaultAction};
 opcodes[0x4C] = {name = 'MPS'; action = actions.defaultAction};
 --opcodes[0x3A - 0x3B] = {name = 'MSIRP[a]'; action = actions.defaultAction};
@@ -189,7 +198,8 @@ opcodes[0x12] = {name = 'SRP2'; action = actions.defaultAction};
 opcodes[0x1F] = {name = 'SSW'; action = actions.defaultAction};
 opcodes[0x1E] = {name = 'SSWCI'; action = actions.defaultAction};
 opcodes[0x61] = {name = 'SUB'; action = actions.defaultAction};
---opcodes[0x00 - 0x01] = {name = 'SVTCA[a]'; action = actions.defaultAction};
+opcodes[0x00] = {name = 'SVTCA[0]'; action = actions.defaultAction};
+opcodes[0x01] = {name = 'SVTCA[1]'; action = actions.defaultAction};
 opcodes[0x23] = {name = 'SWAP'; action = actions.defaultAction};
 opcodes[0x13] = {name = 'SZP0'; action = actions.defaultAction};
 opcodes[0x14] = {name = 'SZP1'; action = actions.defaultAction};
@@ -209,11 +219,11 @@ local function transcodeInstructions(ins, len)
     while (true) do
         local opcode = ms:get8();
         if not opcode then break; end
-
+--print(string.format("0x%02X", opcode))
         local opentry = opcodes[opcode];
         if opentry then
             if opentry.action then 
-                opentry.action('vm', opentry, ms)
+                opentry.action('vm', opcode, opentry, ms)
             else
                 print(string.format("%8s", opentry.name))
             end
