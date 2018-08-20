@@ -285,7 +285,7 @@ end
 --]]
 local Path = {}
 setmetatable(Path, {
-    __call = function(self, ...)    -- functor
+    __call = function(self, ...)
         return self:new(...);
     end,
 })
@@ -416,6 +416,7 @@ function Path.write(self, strm)
 			childcount = childcount + 1;
 		else
 			if name ~= "_kind" then
+				name = realAttrName(name);
 				strm:writeAttribute(name, tostring(value));
 			end
 		end
@@ -476,6 +477,7 @@ function Polygon.write(self, strm)
 	for name, value in pairs(self) do
 		if type(value) == "string" or
 			type(value) == "number" then
+			name = realAttrName(name);
 			strm:writeAttribute(name, tostring(value));
 		end
 	end
@@ -528,6 +530,7 @@ function PolyLine.write(self, strm)
 	for name, value in pairs(self) do
 		if type(value) == "string" or
 			type(value) == "number" then
+			name = realAttrName(name);
 			strm:writeAttribute(name, tostring(value));
 		end
 	end
