@@ -2,6 +2,22 @@ package.path = "../?.lua;"..package.path;
 
 require("svgcreate.svgelements")()
 
+local function speakerContour()
+    return [[
+        M0,10 
+        l5,0
+        a5,5 0 0,0 5,-5
+        l0,-5 26,0 0,5
+        a5,5 0 0,0 5,5  
+        l5,0 0,78 -5,0
+        a5,5 0 0,0 -5,5
+        l0,5 -25,0 0,-5
+        a5,5 0 0,0 -5,-5
+        l-5,0
+        z
+    ]]
+end
+
 local doc = svg {
     ['xmlns:xlink']="http://www.w3.org/1999/xlink",
     width="460mm", 
@@ -18,14 +34,7 @@ local doc = svg {
 
             path {
                 id = "spkrpath",    
-                --d="M0,0 L46,0 L46,98 L0,98 L0,0"
-                --d="M10,0 L36,0 Q 36,10 46,10 L46,88 Q 36,88 35,98 L10,98 Q 10,88 0,88 L0,10 Q10,10 10,0"
-                d=[[
-                    M0,10 
-                    A1,1 0 1,0, 10, 0,  
-                    L46,0 46,98 0,98 
-                    z
-                ]]
+                d= speakerContour();
             };        
         }
     };
