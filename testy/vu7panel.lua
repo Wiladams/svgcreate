@@ -3,17 +3,19 @@ package.path = "../?.lua;"..package.path;
 require("svgcreate.svgelements")()
 
 local function speakerContour()
+    -- width = 46
+    -- height = 98
     return [[
-        M0,10 
-        l5,0
-        a5,5 0 0,0 5,-5
-        l0,-5 26,0 0,5
-        a5,5 0 0,0 5,5  
-        l5,0 0,78 -5,0
-        a5,5 0 0,0 -5,5
-        l0,5 -25,0 0,-5
-        a5,5 0 0,0 -5,-5
-        l-5,0
+        M0,8 
+        l4,0
+        a4,4 0 0,0 4,-4
+        l0,-4 28,0 0,4
+        a4,4 0 0,0 4,4  
+        l4,0 0,84 -4,0
+        a4,4 0 0,0 -4,4
+        l0,4 -28,0 0,-4
+        a4,4 0 0,0 -4,-4
+        l-4,0
         z
     ]]
 end
@@ -32,13 +34,23 @@ local doc = svg {
             stroke_width = "0.1",
             stroke_linejoin = "meter",
 
-            path {
-                id = "spkrpath",    
-                d= speakerContour();
-            };        
-        }
-    };
+            path {d= speakerContour();};        
+        };
 
+        -- cutout for display
+        g {
+            id = "display",
+            fill="none",
+            stroke = "#0000ff",
+            stroke_width = "0.1",
+            rect {
+                x = 0, y = 0,
+                width = 165, 
+                height = 101,
+            };
+        };
+    };
+---[[
     -- Outer rectangle to cut entire panel
     rect {
         fill="none",
@@ -48,23 +60,20 @@ local doc = svg {
         width = 460,
         height = 180
     },
+--]]
 
-    -- cutout for display
-    rect {
-        fill="none",
-        stroke = "#0000ff",
-        stroke_width = "0.1",
-        x = 142, y = 30,
-        width = 165, 
-        height = 96,
-    },
+
+
+---[[
+    --use { ['xlink:href']="#display", transform = "translate(65, 27)", x = 142, y = 30};
+    use { ['xlink:href']="#display", x = 142, y = 30};
 
     -- First speaker
-    use { ['xlink:href']="#speaker", transform = "translate(65, 27)", x = 0, y = 0};
+    use { ['xlink:href']="#speaker", transform="rotate(15, 23,50)", x = 65, y = 27};
 
     -- Second speaker
-    use { ['xlink:href']="#speaker", transform = "translate(338, 27)", x = 0, y = 0};
-
+    use { ['xlink:href']="#speaker", x = 338, y = 27};
+--]]
 }
 
 
