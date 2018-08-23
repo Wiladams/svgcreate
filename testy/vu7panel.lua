@@ -69,7 +69,7 @@ local doc = svg {
     use { ['xlink:href']="#display", x = 142, y = 30};
 
     -- First speaker
-    use { ['xlink:href']="#speaker", transform="rotate(15, 23,50)", x = 65, y = 27};
+    use { ['xlink:href']="#speaker", x = 65, y = 27};
 
     -- Second speaker
     use { ['xlink:href']="#speaker", x = 338, y = 27};
