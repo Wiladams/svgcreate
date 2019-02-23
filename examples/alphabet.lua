@@ -1,3 +1,5 @@
+package.path = "../?.lua;"..package.path;
+
 -- Show alphabet in a grid for kids 
 -- to practice
 require("svgcreate.svgelements")()
@@ -33,7 +35,8 @@ local alphas = {
 
 local function lettering()
     local group = g{
-
+        fill = "#CCCCCC",
+        stroke = "black",
     }
 
     local lmargin = 0.125;
@@ -47,15 +50,18 @@ local function lettering()
         --print(i, i%4)
         x = lmargin + (i%4)*cellWidth;
         y = tmargin + math.floor(i/4)*cellHeight;
+        local achar = alphas[i];
+        print(i, i%4, achar)
 
         group:append(text {
+            style = "text-anchor:start";
             x = x;
             y = y;
             font_size = 0.25,
-            font_family = "Arial",
-            fill = "#CCCCCC",
-            stroke = "black",
-            alphas[i]
+--            font_family = "Arial",
+--            fill = "#CCCCCC",
+--            stroke = "black",
+            achar
         });
     end
 
