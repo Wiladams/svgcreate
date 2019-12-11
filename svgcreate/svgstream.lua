@@ -1,5 +1,21 @@
 --svgstream.lua
+--[[
+	This is a simple svg generator.  It takes a stream
+	as an output.  That stream object must support the 
+	following:
+		reset()
+		writeString(aLuaString)
+	
+	and that's all
 
+	Typical usage:
+	local FileStream = require("svgcreate.filestream")
+	local svgstream = require("svgcreate.svgstream")
+
+	local filename = string.format("equilateral_%d.svg", asize)
+	local imgStream = svgstream(FileStream.open(filename))
+
+]]
 local svgstream = {}
 setmetatable(svgstream, {
 	__call = function(self, ...)

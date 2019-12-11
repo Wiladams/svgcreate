@@ -1,9 +1,10 @@
-
+--[[
 -- Attribute names that have the '-' or ':' characters in them
 -- https://www.w3.org/TR/SVG/attindex.html
 -- we want to allow the user to specify lua friendly names as
 -- table indices, without having to quote them.  So, we have
 -- this alias table. 
+--]]
 
 local attrNameAlias = {
 	accent_height = "accent-height",
@@ -272,6 +273,7 @@ end
 local function SVG(params)
 	local elem = BasicElem('svg', params);
 	elem.xmlns = elem.xmlns or "http://www.w3.org/2000/svg"
+	--elem['xmlns:xlink']="http://www.w3.org/1999/xlink",  
 	elem.version = params.version or "1.1"
 
 	return elem;
