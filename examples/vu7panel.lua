@@ -1,4 +1,4 @@
-package.path = "../?.lua;"..package.path;
+--package.path = "../?.lua;"..package.path;
 
 require("svgcreate.svgelements")()
 
