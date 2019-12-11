@@ -67,9 +67,11 @@ function SVGParser.new(self)
 end
 
 function SVGParser.parse(self, input)
+	print("SVGParser.parse: ")
+
 	XmlParser.parseXML(input, SVGParser.startElement, SVGParser.endElement, SVGParser.content, self)
 
-
+print("  self.Top: ", self.Top)
 	return self.Top;
 end
 
