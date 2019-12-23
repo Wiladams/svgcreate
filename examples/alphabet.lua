@@ -5,64 +5,66 @@ package.path = "../?.lua;"..package.path;
 require("svgcreate.svgelements")()
 
 local alphas = {
-    [0] = "A",
-    "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-    "O",
-    "P",
-    "Q",
-    "R",
-    "S",
-    "T",
-    "U",
-    "V",
-    "W",
-    "X",
-    "Y",
-    "Z"
+    "Aa",
+    "Bb",
+    "Cc",
+    "Dd",
+    "Ee",
+    "Ff",
+    "Gg",
+    "Hh",
+    "Ii",
+    "Jj",
+    "Kk",
+    "Ll",
+    "Mm",
+    "Nn",
+    "Oo",
+    "Pp",
+    "Qq",
+    "Rr",
+    "Ss",
+    "Tt",
+    "Uu",
+    "Vv",
+    "Ww",
+    "Xx",
+    "Yy",
+    "Zz"
 }
 
 local function lettering()
     local group = g{
         fill = "#CCCCCC",
-        stroke = "black",
+        --stroke = "black",
+        font_size = "0.50";
     }
 
     local lmargin = 0.125;
-    local tmargin = 0.125;
+    local tmargin = 0.50;
     local x = lmargin;
     local y = tmargin;
     local cellWidth = 2.00;
     local cellHeight = 1.50;
 
-    for i=0,25 do
+    for i=1,26 do
         --print(i, i%4)
-        x = lmargin + (i%4)*cellWidth;
-        y = tmargin + math.floor(i/4)*cellHeight;
+        x = lmargin + ((i-1)%4)*cellWidth;
+        y = tmargin + math.floor((i-1)/4)*cellHeight;
         local achar = alphas[i];
-        print(i, i%4, achar)
+        --print(i, (i-1)%4, achar)
 
-        group:append(text {
+        local txt = {
+            --font_family = "monospace";
+            generic_family = "serif";
             style = "text-anchor:start";
             x = x;
             y = y;
-            font_size = 0.25,
---            font_family = "Arial",
---            fill = "#CCCCCC",
---            stroke = "black",
-            achar
-        });
+            --font_size = 0.25,
+            achar,
+        }
+
+        group:append(text (txt));
     end
 
     return group;
