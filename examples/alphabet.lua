@@ -1,9 +1,15 @@
 package.path = "../?.lua;"..package.path;
 
 -- Show alphabet in a grid for kids 
--- to practice
+-- to practice their letters.
 require("svgcreate.svgelements")()
 
+--[[
+    You can put anything in the alphas
+    array.  Each entry will show in the upper
+    left corner of a cell in the grid in a light 
+    gray color.
+]]
 local alphas = {
     "Aa",
     "Bb",
